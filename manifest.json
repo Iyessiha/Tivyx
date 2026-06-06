@@ -1,0 +1,27 @@
+{
+  "name": "TivyX — Streaming Africain Premium",
+  "short_name": "TivyX",
+  "description": "La plateforme de streaming des séries africaines Highfields Originals",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#060609",
+  "theme_color": "#e8a838",
+  "lang": "fr",
+  "categories": ["entertainment", "video"],
+  "icons": [
+    { "src": "/icons/icon-72.png",   "sizes": "72x72",   "type": "image/png", "purpose": "maskable any" },
+    { "src": "/icons/icon-96.png",   "sizes": "96x96",   "type": "image/png", "purpose": "maskable any" },
+    { "src": "/icons/icon-128.png",  "sizes": "128x128", "type": "image/png", "purpose": "maskable any" },
+    { "src": "/icons/icon-144.png",  "sizes": "144x144", "type": "image/png", "purpose": "maskable any" },
+    { "src": "/icons/icon-152.png",  "sizes": "152x152", "type": "image/png", "purpose": "maskable any" },
+    { "src": "/icons/icon-192.png",  "sizes": "192x192", "type": "image/png", "purpose": "maskable any" },
+    { "src": "/icons/icon-384.png",  "sizes": "384x384", "type": "image/png", "purpose": "maskable any" },
+    { "src": "/icons/icon-512.png",  "sizes": "512x512", "type": "image/png", "purpose": "maskable any" }
+  ],
+  "shortcuts": [
+    { "name": "Séries", "url": "/catalog",  "icons": [{"src": "/icons/icon-96.png", "sizes": "96x96"}] },
+    { "name": "Ma liste", "url": "/mylist", "icons": [{"src": "/icons/icon-96.png", "sizes": "96x96"}] }
+  ],
+  "prefer_related_applications": false
+}

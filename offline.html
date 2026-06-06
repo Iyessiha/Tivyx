@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TivyX — Hors ligne</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#060609;color:#f2efe8;font-family:'Manrope',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:24px;padding:24px;text-align:center}
+.logo{font-size:36px;font-weight:800;letter-spacing:-1px}
+.logo span{color:#e8a838}
+.icon{font-size:64px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
+h1{font-size:22px;font-weight:700}
+p{color:#5c5878;font-size:14px;line-height:1.6;max-width:320px}
+.btn{padding:12px 28px;background:#e8a838;color:#000;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px}
+.offline-content{background:#0c0c12;border:1px solid #1c1c2c;border-radius:12px;padding:20px;max-width:300px;margin-top:8px}
+.offline-title{font-size:12px;font-weight:700;letter-spacing:1px;color:#5c5878;margin-bottom:12px}
+.offline-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px;text-align:left}
+.offline-item:last-child{border-bottom:none}
+</style>
+</head>
+<body>
+<div class="logo">TIVY<span>X</span></div>
+<div class="icon">📡</div>
+<h1>Vous êtes hors ligne</h1>
+<p>Vérifiez votre connexion internet pour accéder au contenu TivyX en streaming.</p>
+<button class="btn" onclick="location.reload()">↻ Réessayer</button>
+<div class="offline-content">
+  <div class="offline-title">CONTENU DISPONIBLE HORS LIGNE</div>
+  <div class="offline-item">📥 Épisodes téléchargés (plan Premium)</div>
+  <div class="offline-item">📋 Ma liste de séries</div>
+  <div class="offline-item">🔖 Historique de visionnage</div>
+</div>
+<script>
+window.addEventListener('online', () => location.reload());
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.controller?.postMessage({ type: 'SKIP_WAITING' });
+}
+</script>
+</body>
+</html>
