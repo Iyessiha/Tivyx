@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TivyX — Gestionnaire Vidéos</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#07070e;--bg2:#0d0d1a;--bg3:#131322;--bg4:#1a1a2e;
+  --cyan:#00d4ff;--gold:#e8b840;--red:#ff3355;--green:#00e676;--purple:#9966ff;
+  --text:#eeeeff;--muted:#44446a;--sub:#8888bb;--border:#11112a;
+  --font:'DM Sans',sans-serif;--display:'Syne',sans-serif;--mono:'DM Mono',monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;min-height:100vh}
+
+/* LAYOUT */
+.shell{display:grid;grid-template-columns:220px 1fr;grid-template-rows:56px 1fr;min-height:100vh}
+.topbar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+.logo{font-family:var(--display);font-size:18px;font-weight:800}
+.logo span{color:var(--cyan)}
+.logo small{font-size:11px;font-weight:400;color:var(--muted);margin-left:8px;font-family:var(--font)}
+.storage-info{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted)}
+.storage-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green)}
+
+.sidebar{background:var(--bg2);border-right:1px solid var(--border);padding:16px 0}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 18px;cursor:pointer;font-size:13px;color:var(--sub);transition:.2s;border-left:2px solid transparent;font-weight:500}
+.nav-item:hover{color:var(--text);background:rgba(0,212,255,.04)}
+.nav-item.active{color:var(--cyan);background:rgba(0,212,255,.07);border-left-color:var(--cyan)}
+.nav-sect{font-size:9px;font-weight:700;letter-spacing:2px;color:var(--muted);padding:12px 18px 4px;opacity:.5}
+
+.main{overflow-y:auto;padding:24px;background:var(--bg)}
+.view{display:none}.view.active{display:block}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
+.stat{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.stat-lbl{font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--muted);margin-bottom:6px}
+.stat-val{font-family:var(--display);font-size:24px;font-weight:700}
+.sv{color:var(--cyan)}.sg{color:var(--green)}.sr{color:var(--red)}.so{color:var(--gold)}
+
+/* UPLOAD ZONE */
+.upload-zone{border:2px dashed var(--border);border-radius:12px;padding:40px;text-align:center;cursor:pointer;transition:.3s;position:relative;margin-bottom:20px}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--cyan);background:rgba(0,212,255,.04)}
+.upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-icon{font-size:48px;margin-bottom:12px}
+.upload-title{font-family:var(--display);font-size:18px;font-weight:700;margin-bottom:6px}
+.upload-sub{font-size:12px;color:var(--muted);line-height:1.6}
+.upload-formats{display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+.fmt-badge{background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.2);color:var(--cyan);font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;font-family:var(--mono)}
+
+/* UPLOAD QUEUE */
+.queue-item{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:14px}
+.qi-thumb{width:80px;height:50px;background:var(--bg3);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;overflow:hidden;position:relative}
+.qi-thumb video{width:100%;height:100%;object-fit:cover}
+.qi-info{flex:1;min-width:0}
+.qi-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px}
+.qi-size{font-size:11px;color:var(--muted)}
+.qi-prog-wrap{height:3px;background:var(--border);border-radius:2px;margin-top:6px;overflow:hidden}
+.qi-prog{height:100%;border-radius:2px;background:var(--cyan);transition:width .3s;box-shadow:0 0 6px var(--cyan)}
+.qi-status{font-size:11px;font-weight:700;flex-shrink:0}
+.qi-status.uploading{color:var(--cyan)}
+.qi-status.done{color:var(--green)}
+.qi-status.error{color:var(--red)}
+.qi-status.waiting{color:var(--muted)}
+.qi-actions{display:flex;gap:6px;flex-shrink:0}
+
+/* EPISODE LINKER */
+.ep-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:10px;transition:.2s}
+.ep-card:hover{border-color:rgba(0,212,255,.3)}
+.ep-card-hd{display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer}
+.ep-num{font-family:var(--display);font-size:20px;color:var(--border);min-width:32px}
+.ep-show-name{font-size:10px;color:var(--muted);margin-bottom:2px}
+.ep-title{font-size:13px;font-weight:600}
+.ep-dur{font-size:11px;color:var(--muted)}
+.ep-status-pill{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;flex-shrink:0}
+.ep-video-row{padding:0 16px 14px;display:flex;gap:10px;align-items:center}
+.ep-video-input{flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:7px;font-family:var(--mono);font-size:12px;outline:none;transition:.2s}
+.ep-video-input:focus{border-color:var(--cyan)}
+.ep-has-video{display:flex;align-items:center;gap:8px;flex:1;background:rgba(0,230,118,.06);border:1px solid rgba(0,230,118,.2);border-radius:7px;padding:7px 12px}
+.ep-video-name{font-family:var(--mono);font-size:11px;color:var(--green);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* VIDEO LIBRARY */
+.video-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.video-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;cursor:pointer;transition:.25s}
+.video-card:hover{border-color:var(--cyan);transform:translateY(-2px)}
+.vc-thumb{height:120px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:36px;position:relative;overflow:hidden}
+.vc-thumb video{width:100%;height:100%;object-fit:cover}
+.vc-play{position:absolute;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;opacity:0;transition:.2s}
+.video-card:hover .vc-play{opacity:1}
+.vc-body{padding:10px 12px}
+.vc-name{font-size:12px;font-weight:600;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vc-meta{font-size:10px;color:var(--muted);font-family:var(--mono)}
+.vc-linked{position:absolute;top:8px;right:8px;background:var(--green);color:#000;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:7px;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;border:none;transition:.2s}
+.btn-cyan{background:var(--cyan);color:#000}.btn-cyan:hover{background:#0099bb}
+.btn-cyan:disabled{opacity:.4;cursor:not-allowed}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--sub)}.btn-outline:hover{border-color:var(--cyan);color:var(--cyan)}
+.btn-red{background:rgba(255,51,85,.15);color:var(--red);border:1px solid rgba(255,51,85,.3)}
+.btn-green{background:rgba(0,230,118,.15);color:var(--green);border:1px solid rgba(0,230,118,.3)}
+.btn-sm{padding:5px 11px;font-size:11px}
+.btn-xs{padding:3px 8px;font-size:10px}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(6px);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:.25s}
+.modal-overlay.show{opacity:1;pointer-events:all}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:14px;width:640px;max-height:85vh;overflow-y:auto}
+.modal-hd{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2)}
+.modal-title{font-family:var(--display);font-size:15px;font-weight:700}
+.modal-close{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer}
+.modal-body{padding:20px}
+
+/* PLAYER */
+.player-wrap{background:#000;border-radius:10px;overflow:hidden;margin-bottom:14px;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center}
+.player-wrap video{width:100%;height:100%;object-fit:contain}
+.player-placeholder{color:rgba(255,255,255,.3);font-size:48px}
+
+/* PROGRESS BAR */
+.prog-bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin:8px 0}
+.prog-fill{height:100%;background:var(--cyan);border-radius:2px;transition:width .3s;box-shadow:0 0 6px var(--cyan)}
+
+/* SPINNER */
+.spin{width:14px;height:14px;border:2px solid rgba(0,212,255,.2);border-top-color:var(--cyan);border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:24px;background:var(--bg3);border:1px solid var(--cyan);border-radius:10px;padding:11px 18px;font-size:13px;font-weight:600;z-index:9999;transform:translateY(60px);opacity:0;transition:.3s}
+.toast.show{transform:translateY(0);opacity:1}
+
+/* DRAG INDICATOR */
+.drop-overlay{position:fixed;inset:0;background:rgba(0,212,255,.1);border:3px dashed var(--cyan);z-index:400;display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+.drop-overlay.show{display:flex}
+.drop-overlay-icon{font-size:72px}
+.drop-overlay-text{font-family:var(--display);font-size:28px;font-weight:700;color:var(--cyan)}
+</style>
+</head>
+<body>
+
+<!-- DROP OVERLAY -->
+<div class="drop-overlay" id="drop-overlay">
+  <div class="drop-overlay-icon">🎬</div>
+  <div class="drop-overlay-text">Déposer les vidéos ici</div>
+</div>
+
+<div class="shell">
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo">TIVY<span>X</span><small>Video Manager</small></div>
+  <div class="storage-info">
+    <div class="storage-dot"></div>
+    Supabase Storage · tivyx-videos
+    <span style="margin-left:8px;font-family:var(--mono);font-size:11px" id="storage-used">— MB utilisés</span>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="nav-sect">VIDÉOS</div>
+  <div class="nav-item active" onclick="nav('upload')">📤 Uploader</div>
+  <div class="nav-item" onclick="nav('library')">🎬 Bibliothèque</div>
+  <div class="nav-item" onclick="nav('episodes')">📺 Lier aux épisodes</div>
+  <div class="nav-sect">INFO</div>
+  <div class="nav-item" onclick="nav('guide')">📖 Guide</div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- UPLOAD -->
+  <div class="view active" id="view-upload">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <div style="font-family:var(--display);font-size:18px;font-weight:700">Uploader des vidéos</div>
+      <button class="btn btn-outline btn-sm" onclick="nav('episodes')">🔗 Lier aux épisodes →</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="stat-lbl">FICHIERS UPLOADÉS</div><div class="stat-val sv" id="st-files">0</div></div>
+      <div class="stat"><div class="stat-lbl">EN COURS</div><div class="stat-val so" id="st-uploading">0</div></div>
+      <div class="stat"><div class="stat-lbl">TERMINÉS</div><div class="stat-val sg" id="st-done">0</div></div>
+      <div class="stat"><div class="stat-lbl">ERREURS</div><div class="stat-val sr" id="st-errors">0</div></div>
+    </div>
+
+    <!-- DROP ZONE -->
+    <div class="upload-zone" id="upload-zone">
+      <input type="file" id="file-input" accept="video/mp4,video/webm,video/ogg,video/quicktime" multiple onchange="handleFiles(this.files)"/>
+      <div class="upload-icon">🎬</div>
+      <div class="upload-title">Glisse tes vidéos ici</div>
+      <div class="upload-sub">
+        Sélectionne ou dépose tes fichiers vidéo<br/>
+        Nommage recommandé : <span style="color:var(--cyan);font-family:var(--mono)">serie-slug_s1e01.mp4</span>
+      </div>
+      <div class="upload-formats">
+        <span class="fmt-badge">MP4</span>
+        <span class="fmt-badge">WebM</span>
+        <span class="fmt-badge">MOV</span>
+        <span class="fmt-badge">OGG</span>
+        <span class="fmt-badge">Max 5 GB</span>
+      </div>
+    </div>
+
+    <!-- QUEUE -->
+    <div id="upload-queue"></div>
+  </div>
+
+  <!-- LIBRARY -->
+  <div class="view" id="view-library">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <div style="font-family:var(--display);font-size:18px;font-weight:700">Bibliothèque vidéos</div>
+      <button class="btn btn-outline btn-sm" onclick="loadLibrary()">↻ Actualiser</button>
+    </div>
+    <div class="video-grid" id="video-grid">
+      <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">
+        <div class="spin" style="margin:0 auto 12px"></div>
+        <div>Chargement de la bibliothèque...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EPISODES LINKER -->
+  <div class="view" id="view-episodes">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <div>
+        <div style="font-family:var(--display);font-size:18px;font-weight:700">Lier vidéos aux épisodes</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px">Colle l'URL ou sélectionne depuis la bibliothèque</div>
+      </div>
+      <select id="show-filter" style="background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:7px;font-size:12px;outline:none" onchange="loadEpisodesList()">
+        <option value="">Toutes les séries</option>
+      </select>
+    </div>
+    <div id="episodes-list">
+      <div style="text-align:center;padding:40px;color:var(--muted)"><div class="spin" style="margin:0 auto"></div></div>
+    </div>
+  </div>
+
+  <!-- GUIDE -->
+  <div class="view" id="view-guide">
+    <div style="font-family:var(--display);font-size:18px;font-weight:700;margin-bottom:18px">📖 Guide d'utilisation</div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px">
+        <div style="font-family:var(--display);font-size:14px;font-weight:700;color:var(--cyan);margin-bottom:10px">1️⃣ Nommage des fichiers (recommandé)</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.8">
+          Format : <span style="font-family:var(--mono);color:var(--text)">{serie-slug}_s{saison}e{episode}.mp4</span><br/>
+          Exemples :<br/>
+          <span style="font-family:var(--mono);color:var(--cyan)">le-trone-de-korhogo_s1e01.mp4</span><br/>
+          <span style="font-family:var(--mono);color:var(--cyan)">nuit-noire-a-abidjan_s1e03.mp4</span><br/>
+          <span style="font-family:var(--mono);color:var(--cyan)">dakar-delire_s2e05.mp4</span>
+        </div>
+      </div>
+
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px">
+        <div style="font-family:var(--display);font-size:14px;font-weight:700;color:var(--cyan);margin-bottom:10px">2️⃣ URL publique après upload</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.8">
+          Chaque vidéo uploadée reçoit une URL publique :<br/>
+          <span style="font-family:var(--mono);font-size:11px;color:var(--text)">https://crlfkiniwalhzvpxrqav.supabase.co/storage/v1/object/public/tivyx-videos/{nom-fichier}</span>
+        </div>
+      </div>
+
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px">
+        <div style="font-family:var(--display);font-size:14px;font-weight:700;color:var(--cyan);margin-bottom:10px">3️⃣ Formats recommandés</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px">
+          <div>
+            <div style="font-weight:700;margin-bottom:6px">Codec vidéo</div>
+            <div style="color:var(--muted);line-height:1.7">H.264 (MP4) — meilleure compatibilité<br/>H.265 (MP4) — meilleure compression<br/>VP9 (WebM) — open source</div>
+          </div>
+          <div>
+            <div style="font-weight:700;margin-bottom:6px">Résolutions cibles</div>
+            <div style="color:var(--muted);line-height:1.7">1920×1080 (Full HD — plan Premium)<br/>3840×2160 (4K — plan Ultra)<br/>1280×720 (HD — plan Essentiel)</div>
+          </div>
+          <div>
+            <div style="font-weight:700;margin-bottom:6px">Audio</div>
+            <div style="color:var(--muted);line-height:1.7">AAC 192kbps stéréo<br/>48kHz sample rate</div>
+          </div>
+          <div>
+            <div style="font-weight:700;margin-bottom:6px">Taille recommandée</div>
+            <div style="color:var(--muted);line-height:1.7">12 min HD ≈ 800 MB — 1.2 GB<br/>12 min 4K ≈ 2 GB — 3 GB</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:rgba(255,153,0,.06);border:1px solid rgba(255,153,0,.2);border-radius:10px;padding:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:8px">⚡ Astuce — Conversion rapide avec FFmpeg</div>
+        <div style="font-family:var(--mono);font-size:11px;line-height:1.8;color:var(--muted)">
+          # Convertir en MP4 H.264 optimisé streaming<br/>
+          ffmpeg -i input.mov \<br/>
+          &nbsp;&nbsp;-c:v libx264 -crf 22 -preset slow \<br/>
+          &nbsp;&nbsp;-c:a aac -b:a 192k \<br/>
+          &nbsp;&nbsp;-movflags +faststart \<br/>
+          &nbsp;&nbsp;output_s1e01.mp4
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+</div><!-- /shell -->
+
+<!-- MODAL PLAYER -->
+<div class="modal-overlay" id="player-modal">
+  <div class="modal">
+    <div class="modal-hd">
+      <span class="modal-title" id="player-modal-title">Prévisualisation</span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="player-wrap">
+        <video id="modal-video" controls preload="metadata" style="width:100%;height:100%;object-fit:contain">
+          <source id="modal-video-src"/>
+        </video>
+      </div>
+      <div style="background:var(--bg3);border-radius:8px;padding:12px;font-size:12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div><span style="color:var(--muted)">Fichier : </span><span id="modal-filename" style="font-family:var(--mono)">—</span></div>
+          <div><span style="color:var(--muted)">Taille : </span><span id="modal-filesize">—</span></div>
+          <div style="grid-column:1/-1">
+            <span style="color:var(--muted)">URL publique : </span>
+            <span id="modal-url" style="font-family:var(--mono);font-size:11px;color:var(--cyan);word-break:break-all">—</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-green btn-sm" onclick="copyModalUrl()">📋 Copier l'URL</button>
+          <button class="btn btn-cyan btn-sm" onclick="linkToEpisode()">🔗 Lier à un épisode</button>
+          <button class="btn btn-red btn-sm" onclick="deleteVideo()">🗑 Supprimer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SB_URL    = 'https://crlfkiniwalhzvpxrqav.supabase.co';
+const SB_KEY    = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNybGZraW5pd2FsaHp2cHhycWF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NzAyODIsImV4cCI6MjA5NjI0NjI4Mn0.vEISYPOPQQZeO6US3C_6pTCDPDup5iUI002euEM-cdE';
+const BUCKET    = 'tivyx-videos';
+const BASE_URL  = `${SB_URL}/storage/v1/object/public/${BUCKET}/`;
+const { createClient } = supabase;
+const sb = createClient(SB_URL, SB_KEY);
+
+let uploadQueue  = [];
+let libraryFiles = [];
+let currentVideoPath = '';
+let allShows = [];
+let authToken = '';
+
+// ── AUTH ──────────────────────────────────────────────
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) {
+    const email = prompt('Email admin TivyX :') || 'admin@tivyx.com';
+    const pass  = prompt('Mot de passe :') || '';
+    const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+    if (error) { alert('Connexion échouée : ' + error.message); return; }
+    authToken = data.session.access_token;
+  } else {
+    authToken = session.access_token;
+  }
+  await Promise.all([loadShows(), loadLibrary(), loadEpisodesList()]);
+}
+
+async function sbFetch(path, opts={}) {
+  const r = await fetch(SB_URL + path, {
+    headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + (authToken || SB_KEY), ...opts.headers },
+    ...opts
+  });
+  return r;
+}
+
+// ── NAV ──────────────────────────────────────────────
+function nav(v) {
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('view-' + v).classList.add('active');
+  const idx = {upload:0, library:1, episodes:2, guide:3};
+  document.querySelectorAll('.nav-item')[idx[v]]?.classList.add('active');
+  if (v === 'library')  loadLibrary();
+  if (v === 'episodes') loadEpisodesList();
+}
+
+// ── LOAD DATA ─────────────────────────────────────────
+async function loadShows() {
+  const r = await sbFetch('/rest/v1/shows?select=id,title,slug&status=eq.published&order=title');
+  allShows = await r.json();
+  const opts = allShows.map(s => `<option value="${s.id}">${s.title}</option>`).join('');
+  document.getElementById('show-filter').innerHTML = '<option value="">Toutes les séries</option>' + opts;
+}
+
+async function loadLibrary() {
+  const r = await sbFetch(`/storage/v1/object/list/${BUCKET}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ limit: 100, offset: 0, sortBy: { column: 'created_at', order: 'desc' } })
+  });
+  const files = await r.json();
+  libraryFiles = Array.isArray(files) ? files : [];
+  renderLibrary();
+  updateStorageInfo();
+}
+
+function renderLibrary() {
+  const grid = document.getElementById('video-grid');
+  if (!libraryFiles.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:50px;color:var(--muted)">Aucune vidéo · Uploadez vos premiers épisodes</div>';
+    return;
+  }
+  grid.innerHTML = libraryFiles.map(f => {
+    const url  = BASE_URL + f.name;
+    const size = f.metadata?.size ? formatSize(f.metadata.size) : '—';
+    return `
+      <div class="video-card" onclick="openPlayer('${f.name}', '${url}', '${size}')">
+        <div class="vc-thumb">
+          <span>🎬</span>
+          <div class="vc-play">▶</div>
+        </div>
+        <div class="vc-body">
+          <div class="vc-name">${f.name}</div>
+          <div class="vc-meta">${size} · ${f.metadata?.mimetype?.split('/')[1]||'mp4'}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function updateStorageInfo() {
+  const total = libraryFiles.reduce((a, f) => a + (f.metadata?.size || 0), 0);
+  document.getElementById('storage-used').textContent = formatSize(total) + ' utilisés';
+}
+
+async function loadEpisodesList() {
+  const showId = document.getElementById('show-filter').value;
+  let url = '/rest/v1/episodes?select=id,episode_number,title,duration_minutes,status,video_url,show_id,shows(title,slug)&order=show_id,episode_number';
+  if (showId) url += `&show_id=eq.${showId}`;
+  const r = await sbFetch(url);
+  const eps = await r.json();
+  renderEpisodesList(Array.isArray(eps) ? eps : []);
+}
+
+function renderEpisodesList(eps) {
+  const container = document.getElementById('episodes-list');
+  if (!eps.length) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">Aucun épisode trouvé</div>';
+    return;
+  }
+  container.innerHTML = eps.map(ep => {
+    const hasVideo = !!ep.video_url;
+    const statusColor = {published:'var(--green)', video_ready:'var(--cyan)', script_ready:'var(--gold)', draft:'var(--muted)'}[ep.status] || 'var(--muted)';
+    return `
+      <div class="ep-card" id="epc-${ep.id}">
+        <div class="ep-card-hd">
+          <div class="ep-num">${String(ep.episode_number).padStart(2,'0')}</div>
+          <div style="flex:1;min-width:0">
+            <div class="ep-show-name">${ep.shows?.title||'—'}</div>
+            <div class="ep-title">${ep.title}</div>
+            <div class="ep-dur">${ep.duration_minutes} min</div>
+          </div>
+          <span class="ep-status-pill" style="background:${statusColor}22;color:${statusColor}">${ep.status}</span>
+          ${hasVideo ? '<span style="color:var(--green);font-size:18px">✓</span>' : '<span style="color:var(--muted);font-size:18px">○</span>'}
+        </div>
+        <div class="ep-video-row">
+          ${hasVideo ? `
+            <div class="ep-has-video">
+              <span style="font-size:14px">🎬</span>
+              <span class="ep-video-name">${ep.video_url}</span>
+            </div>
+            <button class="btn btn-outline btn-xs" onclick="previewEpVideo('${ep.video_url}')">▶</button>
+            <button class="btn btn-red btn-xs" onclick="unlinkVideo('${ep.id}')">✕</button>
+          ` : `
+            <input class="ep-video-input" id="vi-${ep.id}" placeholder="URL vidéo ou sélectionne dans la bibliothèque..." value=""/>
+            <button class="btn btn-outline btn-xs" onclick="pickFromLibrary('${ep.id}')">📂</button>
+            <button class="btn btn-cyan btn-xs" onclick="saveVideoUrl('${ep.id}')">💾</button>
+          `}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── UPLOAD ────────────────────────────────────────────
+function handleFiles(files) {
+  const arr = Array.from(files);
+  arr.forEach(file => addToQueue(file));
+}
+
+function addToQueue(file) {
+  const id   = 'qi-' + Date.now() + Math.random().toString(36).substr(2,4);
+  const item = { id, file, status: 'waiting', progress: 0 };
+  uploadQueue.push(item);
+  renderQueue();
+  uploadFile(item);
+}
+
+function renderQueue() {
+  const container = document.getElementById('upload-queue');
+  if (!uploadQueue.length) { container.innerHTML = ''; return; }
+  container.innerHTML = uploadQueue.map(item => `
+    <div class="queue-item" id="${item.id}">
+      <div class="qi-thumb">🎬</div>
+      <div class="qi-info">
+        <div class="qi-name">${item.file.name}</div>
+        <div class="qi-size">${formatSize(item.file.size)}</div>
+        <div class="qi-prog-wrap"><div class="qi-prog" id="prog-${item.id}" style="width:${item.progress}%"></div></div>
+      </div>
+      <span class="qi-status ${item.status}" id="sts-${item.id}">
+        ${item.status === 'waiting' ? 'En attente' : item.status === 'uploading' ? item.progress + '%' : item.status === 'done' ? '✓ OK' : '✗ Erreur'}
+      </span>
+    </div>`).join('');
+  updateStats();
+}
+
+async function uploadFile(item) {
+  item.status = 'uploading';
+  updateQueueItem(item);
+
+  const fileName   = sanitizeFileName(item.file.name);
+  const uploadPath = fileName;
+
+  try {
+    // Upload via Supabase Storage API avec XMLHttpRequest pour la progression
+    await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          item.progress = Math.round(e.loaded / e.total * 100);
+          updateQueueItem(item);
+        }
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.response);
+        else reject(new Error('Upload failed: ' + xhr.status + ' ' + xhr.responseText));
+      };
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.open('POST', `${SB_URL}/storage/v1/object/${BUCKET}/${uploadPath}`);
+      xhr.setRequestHeader('apikey', SB_KEY);
+      xhr.setRequestHeader('Authorization', 'Bearer ' + (authToken || SB_KEY));
+      xhr.setRequestHeader('Content-Type', item.file.type || 'video/mp4');
+      xhr.send(item.file);
+    });
+
+    item.status   = 'done';
+    item.progress = 100;
+    item.url      = BASE_URL + uploadPath;
+    updateQueueItem(item);
+    toast(`"${fileName}" uploadé avec succès !`);
+    loadLibrary();
+
+  } catch(e) {
+    item.status = 'error';
+    updateQueueItem(item);
+    toast('Erreur upload : ' + e.message, false);
+  }
+}
+
+function updateQueueItem(item) {
+  const progEl = document.getElementById('prog-' + item.id);
+  const stsEl  = document.getElementById('sts-'  + item.id);
+  if (progEl) progEl.style.width = item.progress + '%';
+  if (stsEl) {
+    stsEl.className = 'qi-status ' + item.status;
+    stsEl.textContent = item.status === 'waiting' ? 'En attente' : item.status === 'uploading' ? item.progress + '%' : item.status === 'done' ? '✓ Uploadé' : '✗ Erreur';
+  }
+  updateStats();
+}
+
+function updateStats() {
+  document.getElementById('st-files').textContent     = uploadQueue.length;
+  document.getElementById('st-uploading').textContent = uploadQueue.filter(i=>i.status==='uploading').length;
+  document.getElementById('st-done').textContent      = uploadQueue.filter(i=>i.status==='done').length;
+  document.getElementById('st-errors').textContent    = uploadQueue.filter(i=>i.status==='error').length;
+}
+
+// ── LINK TO EPISODE ───────────────────────────────────
+async function saveVideoUrl(epId) {
+  const url = document.getElementById('vi-' + epId)?.value.trim();
+  if (!url) { toast('Entre une URL vidéo', false); return; }
+  await sbFetch(`/rest/v1/episodes?id=eq.${epId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+    body: JSON.stringify({ video_url: url, status: 'video_ready' })
+  });
+  toast('Vidéo liée à l\'épisode !');
+  loadEpisodesList();
+}
+
+async function unlinkVideo(epId) {
+  if (!confirm('Retirer la vidéo de cet épisode ?')) return;
+  await sbFetch(`/rest/v1/episodes?id=eq.${epId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+    body: JSON.stringify({ video_url: null, status: 'script_ready' })
+  });
+  toast('Vidéo retirée');
+  loadEpisodesList();
+}
+
+function pickFromLibrary(epId) {
+  if (!libraryFiles.length) { toast('Aucune vidéo en bibliothèque — uploadez d\'abord', false); nav('upload'); return; }
+  const list = libraryFiles.map((f, i) =>
+    `${i + 1}. ${f.name} (${formatSize(f.metadata?.size || 0)})`
+  ).join('\n');
+  const choice = prompt(`Choisir une vidéo (entrer le numéro) :\n\n${list}`);
+  const idx    = parseInt(choice) - 1;
+  if (!isNaN(idx) && libraryFiles[idx]) {
+    const url = BASE_URL + libraryFiles[idx].name;
+    const input = document.getElementById('vi-' + epId);
+    if (input) { input.value = url; toast('Vidéo sélectionnée — clique 💾 pour sauvegarder'); }
+  }
+}
+
+function previewEpVideo(url) {
+  openPlayer(url.split('/').pop(), url, '—');
+}
+
+// ── PLAYER MODAL ──────────────────────────────────────
+function openPlayer(filename, url, size) {
+  currentVideoPath = filename;
+  document.getElementById('player-modal-title').textContent = filename;
+  document.getElementById('modal-filename').textContent     = filename;
+  document.getElementById('modal-filesize').textContent     = size;
+  document.getElementById('modal-url').textContent          = url;
+  const video = document.getElementById('modal-video');
+  document.getElementById('modal-video-src').src = url;
+  video.load();
+  document.getElementById('player-modal').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('player-modal').classList.remove('show');
+  document.getElementById('modal-video').pause();
+}
+
+function copyModalUrl() {
+  const url = document.getElementById('modal-url').textContent;
+  navigator.clipboard.writeText(url).then(() => toast('URL copiée !'));
+}
+
+function linkToEpisode() {
+  closeModal();
+  nav('episodes');
+  const url = document.getElementById('modal-url').textContent;
+  toast('Va dans "Lier aux épisodes" et colle : ' + url.split('/').pop());
+}
+
+async function deleteVideo() {
+  if (!confirm('Supprimer définitivement cette vidéo ?')) return;
+  await sbFetch(`/storage/v1/object/${BUCKET}/${currentVideoPath}`, { method: 'DELETE' });
+  closeModal();
+  loadLibrary();
+  toast('Vidéo supprimée');
+}
+
+// ── DRAG & DROP ───────────────────────────────────────
+document.addEventListener('dragover', (e) => { e.preventDefault(); document.getElementById('drop-overlay').classList.add('show'); });
+document.addEventListener('dragleave', (e) => { if (!e.relatedTarget) document.getElementById('drop-overlay').classList.remove('show'); });
+document.addEventListener('drop', (e) => {
+  e.preventDefault();
+  document.getElementById('drop-overlay').classList.remove('show');
+  const files = e.dataTransfer.files;
+  if (files.length) { nav('upload'); Array.from(files).forEach(f => { if (f.type.startsWith('video/')) addToQueue(f); }); }
+});
+
+// ── UTILS ─────────────────────────────────────────────
+function formatSize(bytes) {
+  if (!bytes) return '0 B';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
+  if (bytes < 1073741824) return (bytes/1048576).toFixed(1) + ' MB';
+  return (bytes/1073741824).toFixed(2) + ' GB';
+}
+
+function sanitizeFileName(name) {
+  return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-_.]/g, '').replace(/--+/g, '-');
+}
+
+function toast(msg, ok=true) {
+  const t = document.getElementById('toast');
+  t.textContent   = (ok ? '✦ ' : '✕ ') + msg;
+  t.style.borderColor = ok ? 'var(--cyan)' : 'var(--red)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+init();
+</script>
+</body>
+</html>
