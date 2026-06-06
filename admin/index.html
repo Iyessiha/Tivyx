@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TivyX Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#07070e;--bg2:#0d0d1a;--bg3:#131322;--bg4:#1a1a2e;
+  --cyan:#00d4ff;--cyan2:#0099bb;--gold:#e8b840;--red:#ff3355;
+  --green:#00e676;--purple:#9966ff;--orange:#ff7040;
+  --text:#eeeeff;--muted:#44446a;--sub:#8888bb;--border:#11112a;
+  --font:'DM Sans',sans-serif;--display:'Syne',sans-serif;--mono:'DM Mono',monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;min-height:100vh}
+
+/* ── LOGIN ── */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 0%,rgba(0,212,255,.06),transparent 60%)}
+.login-box{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:36px;width:360px}
+.login-logo{font-family:var(--display);font-size:28px;font-weight:800;text-align:center;margin-bottom:4px}
+.login-logo span{color:var(--cyan)}
+.login-sub{text-align:center;font-size:12px;color:var(--muted);margin-bottom:28px}
+.login-field{margin-bottom:14px}
+.login-field label{display:block;font-size:10px;font-weight:700;letter-spacing:1px;color:var(--muted);margin-bottom:5px}
+.login-field input{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:11px 14px;border-radius:8px;font-family:var(--font);font-size:14px;outline:none;transition:.2s}
+.login-field input:focus{border-color:var(--cyan)}
+.login-err{background:rgba(255,51,85,.1);border:1px solid rgba(255,51,85,.3);color:var(--red);border-radius:6px;padding:9px 12px;font-size:12px;margin-bottom:12px;display:none}
+.login-err.show{display:block}
+.btn-login{width:100%;padding:12px;border-radius:8px;background:var(--cyan);color:#000;border:none;font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer;transition:.2s}
+.btn-login:hover{background:var(--cyan2)}
+.btn-login:disabled{opacity:.5;cursor:not-allowed}
+
+/* ── SHELL ── */
+.shell{display:grid;grid-template-columns:220px 1fr;grid-template-rows:56px 1fr;min-height:100vh}
+.topbar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+.topbar-logo{font-family:var(--display);font-size:18px;font-weight:800}
+.topbar-logo span{color:var(--cyan)}
+.topbar-logo small{font-size:11px;font-weight:400;color:var(--muted);margin-left:8px;font-family:var(--font)}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.topbar-user{font-size:12px;color:var(--muted)}
+.btn-logout{background:rgba(255,51,85,.1);border:1px solid rgba(255,51,85,.2);color:var(--red);padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)}
+
+/* ── SIDEBAR ── */
+.sidebar{background:var(--bg2);border-right:1px solid var(--border);padding:16px 0;display:flex;flex-direction:column}
+.nav-sect{font-size:9px;font-weight:700;letter-spacing:2px;color:var(--muted);padding:12px 18px 4px;opacity:.5}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 18px;cursor:pointer;font-size:13px;color:var(--sub);transition:.2s;border-left:2px solid transparent;font-weight:500}
+.nav-item:hover{color:var(--text);background:rgba(0,212,255,.04)}
+.nav-item.active{color:var(--cyan);background:rgba(0,212,255,.07);border-left-color:var(--cyan)}
+.nav-item .ni{font-size:15px;min-width:18px;text-align:center}
+
+/* ── MAIN ── */
+.main{overflow-y:auto;padding:24px;background:var(--bg)}
+.view{display:none}.view.active{display:block}
+
+/* ── STATS ── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
+.stat{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.stat-lbl{font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--muted);margin-bottom:6px}
+.stat-val{font-family:var(--display);font-size:26px;font-weight:700}
+.s-cyan{color:var(--cyan)}.s-gold{color:var(--gold)}.s-green{color:var(--green)}.s-red{color:var(--red)}
+.stat-sub{font-size:10px;color:var(--muted);margin-top:3px}
+
+/* ── CARDS ── */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
+.card-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)}
+.card-title{font-size:13px;font-weight:700;font-family:var(--display)}
+.card-body{padding:18px}
+
+/* ── TABLE ── */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--muted);padding:9px 14px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.02)}
+.tbl td{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);font-size:13px;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:rgba(0,212,255,.03)}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:7px;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;border:none;transition:.2s}
+.btn-cyan{background:var(--cyan);color:#000}.btn-cyan:hover{background:var(--cyan2)}
+.btn-cyan:disabled{opacity:.4;cursor:not-allowed}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--sub)}.btn-outline:hover{border-color:var(--cyan);color:var(--cyan)}
+.btn-red{background:rgba(255,51,85,.15);color:var(--red);border:1px solid rgba(255,51,85,.3)}
+.btn-green{background:rgba(0,230,118,.15);color:var(--green);border:1px solid rgba(0,230,118,.3)}
+.btn-gold{background:rgba(232,184,64,.15);color:var(--gold);border:1px solid rgba(232,184,64,.3)}
+.btn-sm{padding:5px 11px;font-size:11px}
+.btn-xs{padding:3px 8px;font-size:10px}
+
+/* ── BADGE ── */
+.badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700}
+.badge-published{background:rgba(0,230,118,.15);color:var(--green)}
+.badge-ready{background:rgba(232,184,64,.15);color:var(--gold)}
+.badge-draft{background:rgba(68,68,106,.2);color:var(--muted)}
+.badge-generating{background:rgba(0,212,255,.15);color:var(--cyan)}
+.badge-archived{background:rgba(255,51,85,.1);color:var(--red)}
+
+/* ── FORM ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-grid.one{grid-template-columns:1fr}
+.form-grid.three{grid-template-columns:1fr 1fr 1fr}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--muted)}
+.field input,.field select,.field textarea{background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:7px;font-family:var(--font);font-size:13px;outline:none;transition:.2s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--cyan)}
+.field select option{background:var(--bg3)}
+.field textarea{resize:vertical;min-height:80px;line-height:1.6}
+.field-full{grid-column:1/-1}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(4px);z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:.25s}
+.modal-overlay.show{opacity:1;pointer-events:all}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:14px;width:580px;max-height:90vh;overflow-y:auto}
+.modal-hd{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2)}
+.modal-title{font-size:14px;font-weight:700;font-family:var(--display)}
+.modal-close{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer}
+.modal-body{padding:20px}
+.modal-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px}
+
+/* ── AI GEN ── */
+.ai-block{background:var(--bg3);border-left:2px solid var(--cyan);border-radius:6px;padding:12px 14px;margin-bottom:10px;font-size:12px;line-height:1.6;color:var(--text)}
+.ai-lbl{font-size:9px;font-weight:700;letter-spacing:1.5px;color:var(--cyan);margin-bottom:6px}
+
+/* ── PROGRESS ── */
+.prog-wrap{height:3px;background:var(--border);border-radius:2px;overflow:hidden;margin:8px 0}
+.prog-fill{height:100%;background:var(--cyan);border-radius:2px;transition:width .4s}
+
+/* ── SPINNER ── */
+.spin{width:14px;height:14px;border:2px solid rgba(0,212,255,.2);border-top-color:var(--cyan);border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loader{display:none;align-items:center;gap:7px;font-size:12px;color:var(--cyan)}
+.loader.show{display:flex}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:20px;right:24px;background:var(--bg3);border:1px solid var(--cyan);border-radius:10px;padding:11px 18px;font-size:13px;font-weight:600;z-index:9999;transform:translateY(60px);opacity:0;transition:.3s}
+.toast.show{transform:translateY(0);opacity:1}
+
+/* ── PIPELINE ── */
+.pipeline{display:flex;gap:0;overflow-x:auto;padding:4px 0;margin-bottom:14px}
+.pipe-node{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;min-width:110px;flex-shrink:0;transition:.2s}
+.pipe-node.active{border-color:var(--cyan);background:rgba(0,212,255,.07)}
+.pipe-node.done{border-color:rgba(0,230,118,.4)}
+.pipe-arrow{color:var(--muted);padding:0 4px;align-self:center;font-size:18px}
+.pipe-icon{font-size:20px}
+.pipe-lbl{font-size:10px;font-weight:700;color:var(--muted)}
+.pipe-status{font-size:10px}
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ── -->
+<div id="login-screen" class="login-wrap">
+  <div class="login-box">
+    <div class="login-logo">TIVY<span>X</span></div>
+    <div class="login-sub">Dashboard Administrateur</div>
+    <div class="login-err" id="login-err"></div>
+    <div class="login-field"><label>EMAIL ADMIN</label><input type="email" id="adm-email" placeholder="admin@tivyx.com" autocomplete="email"/></div>
+    <div class="login-field"><label>MOT DE PASSE</label><input type="password" id="adm-pass" placeholder="••••••••" autocomplete="current-password"/></div>
+    <button class="btn-login" onclick="adminLogin()" id="btn-adm-login">Accéder au dashboard</button>
+    <div style="margin-top:14px;font-size:11px;color:var(--muted);text-align:center">Accès réservé aux administrateurs TivyX</div>
+  </div>
+</div>
+
+<!-- ── APP ── -->
+<div id="app" style="display:none">
+<div class="shell">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div>
+      <span class="topbar-logo">TIVY<span>X</span><small>Admin Studio</small></span>
+    </div>
+    <div class="topbar-right">
+      <span class="topbar-user" id="topbar-user">—</span>
+      <button class="btn-logout" onclick="adminLogout()">↩ Déconnexion</button>
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="nav-sect">CONTENU</div>
+    <div class="nav-item active" onclick="nav('dashboard')"><span class="ni">📊</span>Dashboard</div>
+    <div class="nav-item" onclick="nav('shows')"><span class="ni">🎬</span>Séries</div>
+    <div class="nav-item" onclick="nav('episodes')"><span class="ni">📺</span>Épisodes</div>
+    <div class="nav-item" onclick="nav('characters')"><span class="ni">👤</span>Personnages</div>
+    <div class="nav-item" onclick="nav('generator')"><span class="ni">✨</span>Générateur IA</div>
+    <div class="nav-sect">BUSINESS</div>
+    <div class="nav-item" onclick="nav('subscribers')"><span class="ni">👥</span>Abonnés</div>
+    <div class="nav-item" onclick="nav('plans')"><span class="ni">💳</span>Plans</div>
+    <div class="nav-sect">SYSTEM</div>
+    <div class="nav-item" onclick="nav('jobs')"><span class="ni">⚙️</span>Jobs IA</div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- DASHBOARD -->
+    <div class="view active" id="view-dashboard">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <div style="font-family:var(--display);font-size:18px;font-weight:700">Vue d'ensemble</div>
+        <button class="btn btn-outline btn-sm" onclick="loadDashboard()">↻ Actualiser</button>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="stat-lbl">SÉRIES</div><div class="stat-val s-cyan" id="st-shows">—</div><div class="stat-sub" id="st-shows-sub">—</div></div>
+        <div class="stat"><div class="stat-lbl">ÉPISODES</div><div class="stat-val s-gold" id="st-eps">—</div><div class="stat-sub" id="st-eps-sub">—</div></div>
+        <div class="stat"><div class="stat-lbl">ABONNÉS</div><div class="stat-val s-green" id="st-subs">—</div><div class="stat-sub">actifs</div></div>
+        <div class="stat"><div class="stat-lbl">REVENUS (XOF)</div><div class="stat-val s-gold" id="st-rev">—</div><div class="stat-sub">ce mois</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div class="card">
+          <div class="card-hd"><span class="card-title">Séries récentes</span><button class="btn btn-cyan btn-sm" onclick="openShowModal()">+ Ajouter</button></div>
+          <table class="tbl"><thead><tr><th>TITRE</th><th>STATUT</th><th>ACTIONS</th></tr></thead>
+          <tbody id="dash-shows-body"><tr><td colspan="3" style="text-align:center;padding:20px;color:var(--muted)"><div class="spin"></div></td></tr></tbody></table>
+        </div>
+        <div class="card">
+          <div class="card-hd"><span class="card-title">Derniers épisodes</span><button class="btn btn-cyan btn-sm" onclick="nav('episodes')">Voir tout</button></div>
+          <table class="tbl"><thead><tr><th>TITRE</th><th>SÉRIE</th><th>STATUT</th></tr></thead>
+          <tbody id="dash-eps-body"><tr><td colspan="3" style="text-align:center;padding:20px;color:var(--muted)"><div class="spin"></div></td></tr></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SÉRIES -->
+    <div class="view" id="view-shows">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <div style="font-family:var(--display);font-size:18px;font-weight:700">Séries & Films</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline btn-sm" onclick="loadShows()">↻</button>
+          <button class="btn btn-cyan" onclick="openShowModal()">+ Nouvelle série</button>
+        </div>
+      </div>
+      <div class="card" style="overflow:hidden">
+        <table class="tbl">
+          <thead><tr><th>TITRE</th><th>GENRE</th><th>STATUT</th><th>SAISONS</th><th>ÉP. CIBLES</th><th>ORIGINAL</th><th>ACTIONS</th></tr></thead>
+          <tbody id="shows-body"><tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)"><div class="spin"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ÉPISODES -->
+    <div class="view" id="view-episodes">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <div style="font-family:var(--display);font-size:18px;font-weight:700">Épisodes</div>
+        <div style="display:flex;gap:8px">
+          <select id="eps-show-filter" style="background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:7px;font-size:12px;outline:none" onchange="loadEpisodes()">
+            <option value="">Toutes les séries</option>
+          </select>
+          <button class="btn btn-outline btn-sm" onclick="loadEpisodes()">↻</button>
+          <button class="btn btn-cyan" onclick="openEpModal()">+ Nouvel épisode</button>
+        </div>
+      </div>
+      <div class="card" style="overflow:hidden">
+        <table class="tbl">
+          <thead><tr><th>TITRE</th><th>SÉRIE</th><th>S/E</th><th>DURÉE</th><th>STATUT</th><th>VUES</th><th>ACTIONS</th></tr></thead>
+          <tbody id="eps-body"><tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)"><div class="spin"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PERSONNAGES -->
+    <div class="view" id="view-characters">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+        <div style="font-family:var(--display);font-size:18px;font-weight:700">Personnages</div>
+        <div style="display:flex;gap:8px">
+          <select id="chars-show-filter" style="background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:7px;font-size:12px;outline:none" onchange="loadCharacters()">
+            <option value="">Toutes les séries</option>
+          </select>
+          <button class="btn btn-cyan" onclick="openCharModal()">+ Nouveau personnage</button>
+        </div>
+      </div>
+      <div class="card" style="overflow:hidden">
+        <table class="tbl">
+          <thead><tr><th>NOM</th><th>RÔLE</th><th>SÉRIE</th><th>VOIX</th><th>ACTIONS</th></tr></thead>
+          <tbody id="chars-body"><tr><td colspan="5" style="text-align:center;padding:24px;color:var(--muted)"><div class="spin"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- GÉNÉRATEUR IA -->
+    <div class="view" id="view-generator">
+      <div style="font-family:var(--display);font-size:18px;font-weight:700;margin-bottom:6px">✨ Générateur de Contenu IA</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px">Claude génère automatiquement scripts, personnages et épisodes</div>
+
+      <!-- Pipeline -->
+      <div class="pipeline" id="gen-pipeline">
+        <div class="pipe-node active" id="pn1"><div class="pipe-icon">📝</div><div class="pipe-lbl">SCRIPT</div><div class="pipe-status" id="ps1" style="color:var(--cyan)">En cours</div></div>
+        <div class="pipe-arrow">›</div>
+        <div class="pipe-node" id="pn2"><div class="pipe-icon">👤</div><div class="pipe-lbl">PERSOS</div><div class="pipe-status" id="ps2" style="color:var(--muted)">Attente</div></div>
+        <div class="pipe-arrow">›</div>
+        <div class="pipe-node" id="pn3"><div class="pipe-icon">📺</div><div class="pipe-lbl">ÉPISODES</div><div class="pipe-status" id="ps3" style="color:var(--muted)">Attente</div></div>
+        <div class="pipe-arrow">›</div>
+        <div class="pipe-node" id="pn4"><div class="pipe-icon">🚀</div><div class="pipe-lbl">PUBLISH</div><div class="pipe-status" id="ps4" style="color:var(--muted)">Attente</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-hd"><span class="card-title">Configuration</span></div>
+        <div class="card-body">
+          <div class="form-grid" style="margin-bottom:12px">
+            <div class="field"><label>TITRE DE LA SÉRIE</label><input type="text" id="g-title" placeholder="ex: Les Guerriers de Korhogo"/></div>
+            <div class="field"><label>GENRE</label>
+              <select id="g-genre">
+                <option value="historical">Historique</option>
+                <option value="drama">Drame</option>
+                <option value="thriller">Thriller</option>
+                <option value="comedy">Comédie</option>
+                <option value="action">Action</option>
+                <option value="romance">Romance</option>
+              </select>
+            </div>
+            <div class="field"><label>ÉPISODES</label>
+              <select id="g-eps">
+                <option value="4">4 épisodes</option>
+                <option value="6">6 épisodes</option>
+                <option value="8" selected>8 épisodes</option>
+                <option value="12">12 épisodes</option>
+              </select>
+            </div>
+            <div class="field"><label>DURÉE (min)</label>
+              <select id="g-dur">
+                <option value="8">8 min</option>
+                <option value="12" selected>12 min</option>
+                <option value="20">20 min</option>
+                <option value="45">45 min</option>
+              </select>
+            </div>
+            <div class="field field-full"><label>STYLE VISUEL</label>
+              <input type="text" id="g-style" value="cinematic african drama, warm golden tones, photorealistic, 8k"/>
+            </div>
+            <div class="field field-full"><label>PITCH / CONTEXTE</label>
+              <textarea id="g-pitch" placeholder="Décris le concept, l'époque, les enjeux..."></textarea>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <button class="btn btn-cyan" onclick="generateContent()" id="btn-gen">✨ Générer avec Claude</button>
+            <button class="btn btn-outline btn-sm" onclick="clearGen()">✕ Effacer</button>
+            <div class="loader" id="gen-loader"><div class="spin"></div><span id="gen-loader-txt">Génération...</span></div>
+          </div>
+          <div class="prog-wrap"><div class="prog-fill" id="gen-prog" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <!-- Output IA -->
+      <div id="gen-output" style="display:none">
+        <div class="card">
+          <div class="card-hd"><span class="card-title">✦ Contenu généré</span>
+            <button class="btn btn-green" onclick="saveGenerated()" id="btn-save-gen">💾 Sauvegarder en base</button>
+          </div>
+          <div class="card-body" id="gen-output-body"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABONNÉS -->
+    <div class="view" id="view-subscribers">
+      <div style="font-family:var(--display);font-size:18px;font-weight:700;margin-bottom:18px">Abonnés</div>
+      <div class="stats" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat"><div class="stat-lbl">TOTAL</div><div class="stat-val s-cyan" id="sub-total">—</div></div>
+        <div class="stat"><div class="stat-lbl">ACTIFS</div><div class="stat-val s-green" id="sub-active">—</div></div>
+        <div class="stat"><div class="stat-lbl">REVENUS / MOIS</div><div class="stat-val s-gold" id="sub-rev">—</div></div>
+      </div>
+      <div class="card" style="overflow:hidden">
+        <table class="tbl">
+          <thead><tr><th>EMAIL</th><th>PLAN</th><th>STATUT</th><th>PAIEMENT</th><th>INSCRIT LE</th></tr></thead>
+          <tbody id="subs-body"><tr><td colspan="5" style="text-align:center;padding:24px;color:var(--muted)"><div class="spin"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PLANS -->
+    <div class="view" id="view-plans">
+      <div style="font-family:var(--display);font-size:18px;font-weight:700;margin-bottom:18px">Plans d'abonnement</div>
+      <div class="card" style="overflow:hidden">
+        <table class="tbl">
+          <thead><tr><th>PLAN</th><th>PRIX/MOIS (XOF)</th><th>PRIX/AN (XOF)</th><th>ÉCRANS</th><th>QUALITÉ</th><th>ORIGINALS</th></tr></thead>
+          <tbody id="plans-body"><tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)"><div class="spin"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- JOBS -->
+    <div class="view" id="view-jobs">
+      <div style="font-family:var(--display);font-size:18px;font-weight:700;margin-bottom:18px">Jobs de génération IA</div>
+      <div class="card" style="overflow:hidden">
+        <table class="tbl">
+          <thead><tr><th>TYPE</th><th>STATUT</th><th>SÉRIE</th><th>CRÉÉ LE</th></tr></thead>
+          <tbody id="jobs-body"><tr><td colspan="4" style="text-align:center;padding:24px;color:var(--muted)"><div class="spin"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /shell -->
+</div><!-- /app -->
+
+<!-- ── MODAL SÉRIE ── -->
+<div class="modal-overlay" id="show-modal">
+  <div class="modal">
+    <div class="modal-hd">
+      <span class="modal-title" id="show-modal-title">Nouvelle série</span>
+      <button class="modal-close" onclick="closeModal('show-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid" style="margin-bottom:12px">
+        <div class="field field-full"><label>TITRE</label><input type="text" id="sm-title" placeholder="Titre de la série"/></div>
+        <div class="field field-full"><label>SLUG (URL)</label><input type="text" id="sm-slug" placeholder="titre-de-la-serie"/></div>
+        <div class="field"><label>GENRE</label>
+          <select id="sm-genre"></select>
+        </div>
+        <div class="field"><label>STATUT</label>
+          <select id="sm-status">
+            <option value="draft">Brouillon</option>
+            <option value="generating">Génération</option>
+            <option value="ready">Prêt</option>
+            <option value="published">Publié</option>
+            <option value="archived">Archivé</option>
+          </select>
+        </div>
+        <div class="field"><label>SAISONS</label><input type="number" id="sm-seasons" value="1" min="1"/></div>
+        <div class="field"><label>ÉPISODES CIBLES</label><input type="number" id="sm-eps-target" value="8" min="1"/></div>
+        <div class="field"><label>CLASSIFICATION</label>
+          <select id="sm-rating">
+            <option value="+12">+12</option>
+            <option value="+16" selected>+16</option>
+            <option value="+18">+18</option>
+          </select>
+        </div>
+        <div class="field"><label>ORIGINAL TIVYX</label>
+          <select id="sm-original">
+            <option value="true">Oui — TivyX Original</option>
+            <option value="false">Non — Standard</option>
+          </select>
+        </div>
+        <div class="field field-full"><label>SYNOPSIS</label><textarea id="sm-synopsis" placeholder="Description de la série..."></textarea></div>
+        <div class="field field-full"><label>STYLE VISUEL IA</label><input type="text" id="sm-style" placeholder="cinematic african drama, warm tones..."/></div>
+      </div>
+      <input type="hidden" id="sm-id"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('show-modal')">Annuler</button>
+      <button class="btn btn-cyan" onclick="saveShow()" id="btn-save-show">💾 Sauvegarder</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL ÉPISODE ── -->
+<div class="modal-overlay" id="ep-modal">
+  <div class="modal">
+    <div class="modal-hd">
+      <span class="modal-title" id="ep-modal-title">Nouvel épisode</span>
+      <button class="modal-close" onclick="closeModal('ep-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid" style="margin-bottom:12px">
+        <div class="field field-full"><label>SÉRIE</label><select id="em-show"></select></div>
+        <div class="field"><label>NUMÉRO</label><input type="number" id="em-num" value="1" min="1"/></div>
+        <div class="field"><label>DURÉE (min)</label><input type="number" id="em-dur" value="12" min="1"/></div>
+        <div class="field field-full"><label>TITRE</label><input type="text" id="em-title" placeholder="Titre de l'épisode"/></div>
+        <div class="field"><label>STATUT</label>
+          <select id="em-status">
+            <option value="draft">Brouillon</option>
+            <option value="script_ready">Script prêt</option>
+            <option value="audio_ready">Audio prêt</option>
+            <option value="video_ready">Vidéo prête</option>
+            <option value="published">Publié</option>
+          </select>
+        </div>
+        <div class="field"><label>URL VIDÉO</label><input type="text" id="em-video" placeholder="https://..."/></div>
+        <div class="field field-full"><label>SYNOPSIS</label><textarea id="em-synopsis" placeholder="Résumé de l'épisode..."></textarea></div>
+        <div class="field field-full"><label>SCRIPT</label><textarea id="em-script" placeholder="Script complet..." style="min-height:120px"></textarea></div>
+      </div>
+      <input type="hidden" id="em-id"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('ep-modal')">Annuler</button>
+      <button class="btn btn-cyan" onclick="saveEpisode()">💾 Sauvegarder</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL PERSONNAGE ── -->
+<div class="modal-overlay" id="char-modal">
+  <div class="modal">
+    <div class="modal-hd">
+      <span class="modal-title">Nouveau personnage</span>
+      <button class="modal-close" onclick="closeModal('char-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid" style="margin-bottom:12px">
+        <div class="field field-full"><label>SÉRIE</label><select id="cm-show"></select></div>
+        <div class="field"><label>NOM</label><input type="text" id="cm-name" placeholder="Nom du personnage"/></div>
+        <div class="field"><label>RÔLE</label><input type="text" id="cm-role" placeholder="ex: Protagoniste"/></div>
+        <div class="field"><label>VOIX ID (ElevenLabs)</label><input type="text" id="cm-voice" placeholder="voice_id..."/></div>
+        <div class="field field-full"><label>DESCRIPTION</label><textarea id="cm-desc" placeholder="Description du personnage..."></textarea></div>
+      </div>
+      <input type="hidden" id="cm-id"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('char-modal')">Annuler</button>
+      <button class="btn btn-cyan" onclick="saveCharacter()">💾 Sauvegarder</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── SUPABASE ──────────────────────────────────────────
+const SB_URL = 'https://crlfkiniwalhzvpxrqav.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNybGZraW5pd2FsaHp2cHhycWF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NzAyODIsImV4cCI6MjA5NjI0NjI4Mn0.vEISYPOPQQZeO6US3C_6pTCDPDup5iUI002euEM-cdE';
+const { createClient } = supabase;
+const sb = createClient(SB_URL, SB_KEY);
+
+let allShows = [], allGenres = [], generatedData = null;
+
+// ── AUTH ──────────────────────────────────────────────
+async function adminLogin() {
+  const email = document.getElementById('adm-email').value.trim();
+  const pass  = document.getElementById('adm-pass').value;
+  if (!email || !pass) { showLoginErr('Email et mot de passe requis'); return; }
+  const btn = document.getElementById('btn-adm-login');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) { showLoginErr('Accès refusé — ' + error.message); btn.disabled = false; btn.textContent = 'Accéder au dashboard'; return; }
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('topbar-user').textContent = data.user.email;
+  await Promise.all([loadGenres(), loadShowsIntoSelects()]);
+  loadDashboard();
+}
+
+async function adminLogout() {
+  await sb.auth.signOut();
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('adm-email').value = '';
+  document.getElementById('adm-pass').value = '';
+  document.getElementById('btn-adm-login').disabled = false;
+  document.getElementById('btn-adm-login').textContent = 'Accéder au dashboard';
+}
+
+function showLoginErr(msg) {
+  const el = document.getElementById('login-err');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+// Vérifier session existante
+sb.auth.getSession().then(({ data: { session } }) => {
+  if (session?.user) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('topbar-user').textContent = session.user.email;
+    Promise.all([loadGenres(), loadShowsIntoSelects()]).then(() => loadDashboard());
+  }
+});
+
+// ── NAV ──────────────────────────────────────────────
+function nav(v) {
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('view-' + v).classList.add('active');
+  const idx = {dashboard:0,shows:1,episodes:2,characters:3,generator:4,subscribers:5,plans:6,jobs:7};
+  document.querySelectorAll('.nav-item')[idx[v]]?.classList.add('active');
+  if (v === 'dashboard')   loadDashboard();
+  if (v === 'shows')       loadShows();
+  if (v === 'episodes')    loadEpisodes();
+  if (v === 'characters')  loadCharacters();
+  if (v === 'subscribers') loadSubscribers();
+  if (v === 'plans')       loadPlans();
+  if (v === 'jobs')        loadJobs();
+}
+
+// ── HELPERS ──────────────────────────────────────────
+async function sbGet(table, query='') {
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/${table}${query}`, {
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+    });
+    return r.json();
+  } catch { return []; }
+}
+
+async function sbPost(table, body, id=null) {
+  const method = id ? 'PATCH' : 'POST';
+  const url    = id ? `${SB_URL}/rest/v1/${table}?id=eq.${id}` : `${SB_URL}/rest/v1/${table}`;
+  const r = await fetch(url, {
+    method,
+    headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+    body: JSON.stringify(body)
+  });
+  return r.json();
+}
+
+async function sbDelete(table, id) {
+  await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`, {
+    method: 'DELETE',
+    headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+  });
+}
+
+function statusBadge(s) {
+  const l = {published:'Publié',ready:'Prêt',draft:'Brouillon',generating:'Génération',archived:'Archivé',script_ready:'Script OK',audio_ready:'Audio OK',video_ready:'Vidéo OK',active:'Actif',cancelled:'Annulé'};
+  return `<span class="badge badge-${s}">${l[s]||s}</span>`;
+}
+
+// ── LOAD DATA ─────────────────────────────────────────
+async function loadGenres() {
+  allGenres = await sbGet('genres', '?order=name');
+  const opts = allGenres.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+  document.getElementById('sm-genre').innerHTML = opts;
+}
+
+async function loadShowsIntoSelects() {
+  allShows = await sbGet('shows', '?select=id,title&order=title');
+  const opts = allShows.map(s => `<option value="${s.id}">${s.title}</option>`).join('');
+  ['em-show','cm-show','eps-show-filter','chars-show-filter'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = (id.includes('filter') ? '<option value="">Toutes les séries</option>' : '') + opts;
+  });
+}
+
+async function loadDashboard() {
+  const [shows, eps, subs, txs] = await Promise.all([
+    sbGet('shows', '?select=id,is_original,status'),
+    sbGet('episodes', '?select=id,status'),
+    sbGet('subscribers', '?plan_status=eq.active&select=id'),
+    sbGet('payment_transactions', '?status=eq.completed&select=amount_xof'),
+  ]);
+  document.getElementById('st-shows').textContent  = shows.length;
+  document.getElementById('st-shows-sub').textContent = shows.filter(s=>s.is_original).length + ' Originals';
+  document.getElementById('st-eps').textContent    = eps.length;
+  document.getElementById('st-eps-sub').textContent = eps.filter(e=>e.status==='published').length + ' publiés';
+  document.getElementById('st-subs').textContent   = subs.length;
+  document.getElementById('st-rev').textContent    = txs.reduce((a,t)=>a+(t.amount_xof||0),0).toLocaleString('fr-FR');
+
+  const recentShows = await sbGet('shows', '?select=id,title,status&order=created_at.desc&limit=5');
+  document.getElementById('dash-shows-body').innerHTML = recentShows.map(s => `<tr>
+    <td style="font-weight:600">${s.title}</td>
+    <td>${statusBadge(s.status)}</td>
+    <td><button class="btn btn-outline btn-xs" onclick="openShowModal('${s.id}')">Éditer</button></td>
+  </tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:16px">Aucune série</td></tr>';
+
+  const recentEps = await sbGet('episodes', '?select=id,title,status,shows(title)&order=created_at.desc&limit=5');
+  document.getElementById('dash-eps-body').innerHTML = recentEps.map(e => `<tr>
+    <td style="font-weight:600">${e.title}</td>
+    <td style="color:var(--muted);font-size:11px">${e.shows?.title||'—'}</td>
+    <td>${statusBadge(e.status)}</td>
+  </tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:16px">Aucun épisode</td></tr>';
+}
+
+async function loadShows() {
+  const shows = await sbGet('shows', '?select=*,genres(name)&order=created_at.desc');
+  document.getElementById('shows-body').innerHTML = shows.map(s => `<tr>
+    <td style="font-weight:600">${s.title}</td>
+    <td style="color:var(--muted)">${s.genres?.name||'—'}</td>
+    <td>${statusBadge(s.status)}</td>
+    <td style="text-align:center">${s.total_seasons}</td>
+    <td style="text-align:center">${s.target_episodes}</td>
+    <td style="text-align:center">${s.is_original?'<span style="color:var(--cyan)">✦</span>':'—'}</td>
+    <td>
+      <button class="btn btn-outline btn-xs" onclick="openShowModal('${s.id}')">Éditer</button>
+      <button class="btn btn-xs btn-gold" style="margin-left:4px" onclick="publishShow('${s.id}','${s.status}')">
+        ${s.status==='published'?'Dépublier':'Publier'}
+      </button>
+      <button class="btn btn-red btn-xs" style="margin-left:4px" onclick="deleteShow('${s.id}')">✕</button>
+    </td>
+  </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">Aucune série — créez-en une !</td></tr>';
+  await loadShowsIntoSelects();
+}
+
+async function loadEpisodes() {
+  const showId = document.getElementById('eps-show-filter').value;
+  let url = '?select=*,shows(title)&order=created_at.desc&limit=50';
+  if (showId) url += `&show_id=eq.${showId}`;
+  const eps = await sbGet('episodes', url);
+  document.getElementById('eps-body').innerHTML = eps.map(e => `<tr>
+    <td style="font-weight:600">${e.title}</td>
+    <td style="color:var(--muted);font-size:11px">${e.shows?.title||'—'}</td>
+    <td style="font-family:var(--mono);font-size:11px">S1E${e.episode_number}</td>
+    <td>${e.duration_minutes} min</td>
+    <td>${statusBadge(e.status)}</td>
+    <td style="color:var(--muted)">${e.views_count||0}</td>
+    <td>
+      <button class="btn btn-outline btn-xs" onclick="openEpModal('${e.id}')">Éditer</button>
+      <button class="btn btn-red btn-xs" style="margin-left:4px" onclick="deleteEp('${e.id}')">✕</button>
+    </td>
+  </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">Aucun épisode</td></tr>';
+}
+
+async function loadCharacters() {
+  const showId = document.getElementById('chars-show-filter').value;
+  let url = '?select=*,shows(title)&order=name';
+  if (showId) url += `&show_id=eq.${showId}`;
+  const chars = await sbGet('characters', url);
+  document.getElementById('chars-body').innerHTML = chars.map(c => `<tr>
+    <td style="font-weight:600">${c.name}</td>
+    <td style="color:var(--muted)">${c.role||'—'}</td>
+    <td style="color:var(--muted);font-size:11px">${c.shows?.title||'—'}</td>
+    <td style="font-family:var(--mono);font-size:11px;color:var(--cyan)">${c.voice_id||'—'}</td>
+    <td>
+      <button class="btn btn-outline btn-xs" onclick="openCharModal('${c.id}')">Éditer</button>
+      <button class="btn btn-red btn-xs" style="margin-left:4px" onclick="deleteChar('${c.id}')">✕</button>
+    </td>
+  </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Aucun personnage</td></tr>';
+}
+
+async function loadSubscribers() {
+  const subs = await sbGet('subscribers', '?select=*,subscription_plans(name,price_monthly_xof)&order=created_at.desc&limit=30');
+  const active  = subs.filter(s=>s.status==='active');
+  const revenue = active.reduce((a,s)=>a+(s.subscription_plans?.price_monthly_xof||0),0);
+  document.getElementById('sub-total').textContent  = subs.length;
+  document.getElementById('sub-active').textContent = active.length;
+  document.getElementById('sub-rev').textContent    = revenue.toLocaleString('fr-FR') + ' XOF';
+  document.getElementById('subs-body').innerHTML = subs.map(s => `<tr>
+    <td>${s.email||'—'}</td>
+    <td><span style="background:rgba(0,212,255,.12);color:var(--cyan);padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${s.subscription_plans?.name||'—'}</span></td>
+    <td>${statusBadge(s.status==='active'?'published':'archived')}</td>
+    <td style="font-size:11px;color:var(--muted)">${s.payment_method||'—'}</td>
+    <td style="font-size:11px;color:var(--muted)">${s.subscribed_at?new Date(s.subscribed_at).toLocaleDateString('fr-FR'):'—'}</td>
+  </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Aucun abonné</td></tr>';
+}
+
+async function loadPlans() {
+  const plans = await sbGet('subscription_plans', '?order=price_monthly_xof');
+  document.getElementById('plans-body').innerHTML = plans.map(p => `<tr>
+    <td style="font-weight:700">${p.name}</td>
+    <td style="font-family:var(--mono);color:var(--gold)">${p.price_monthly_xof.toLocaleString('fr-FR')}</td>
+    <td style="font-family:var(--mono);color:var(--gold)">${p.price_yearly_xof.toLocaleString('fr-FR')}</td>
+    <td style="text-align:center">${p.max_screens}</td>
+    <td>${p.quality}</td>
+    <td style="text-align:center">${p.has_originals?'<span style="color:var(--cyan)">✦ Oui</span>':'—'}</td>
+  </tr>`).join('');
+}
+
+async function loadJobs() {
+  const jobs = await sbGet('generation_jobs', '?select=*,shows(title)&order=created_at.desc&limit=20');
+  const icons = {script:'📝',characters:'👤',voice:'🎤',image:'🎨',video:'🎬',publish:'🚀'};
+  document.getElementById('jobs-body').innerHTML = jobs.map(j => `<tr>
+    <td>${icons[j.job_type]||'⚙️'} ${j.job_type}</td>
+    <td>${statusBadge(j.status==='done'?'published':j.status==='error'?'archived':'generating')}</td>
+    <td style="color:var(--muted)">${j.shows?.title||'—'}</td>
+    <td style="color:var(--muted);font-size:11px">${new Date(j.created_at).toLocaleDateString('fr-FR')}</td>
+  </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:24px">Aucun job</td></tr>';
+}
+
+// ── MODALS ────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+async function openShowModal(id=null) {
+  document.getElementById('sm-id').value = id || '';
+  if (id) {
+    const shows = await sbGet('shows', `?id=eq.${id}&select=*`);
+    const s = shows[0];
+    if (!s) return;
+    document.getElementById('sm-title').value  = s.title || '';
+    document.getElementById('sm-slug').value   = s.slug || '';
+    document.getElementById('sm-genre').value  = s.genre_id || '';
+    document.getElementById('sm-status').value = s.status || 'draft';
+    document.getElementById('sm-seasons').value     = s.total_seasons || 1;
+    document.getElementById('sm-eps-target').value  = s.target_episodes || 8;
+    document.getElementById('sm-rating').value  = s.rating || '+16';
+    document.getElementById('sm-original').value= s.is_original ? 'true' : 'false';
+    document.getElementById('sm-synopsis').value= s.synopsis || '';
+    document.getElementById('sm-style').value   = s.ai_style || '';
+    document.getElementById('show-modal-title').textContent = 'Modifier la série';
+  } else {
+    ['sm-title','sm-slug','sm-synopsis','sm-style'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('sm-status').value = 'draft';
+    document.getElementById('sm-seasons').value = '1';
+    document.getElementById('sm-eps-target').value = '8';
+    document.getElementById('sm-original').value = 'true';
+    document.getElementById('show-modal-title').textContent = 'Nouvelle série';
+  }
+  openModal('show-modal');
+}
+
+async function saveShow() {
+  const id = document.getElementById('sm-id').value;
+  const title = document.getElementById('sm-title').value.trim();
+  if (!title) { toast('Le titre est requis', false); return; }
+  const btn = document.getElementById('btn-save-show');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>';
+  const slug = document.getElementById('sm-slug').value.trim() ||
+    title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').slice(0,80);
+  const body = {
+    title, slug,
+    genre_id:       document.getElementById('sm-genre').value || null,
+    status:         document.getElementById('sm-status').value,
+    total_seasons:  parseInt(document.getElementById('sm-seasons').value),
+    target_episodes:parseInt(document.getElementById('sm-eps-target').value),
+    rating:         document.getElementById('sm-rating').value,
+    is_original:    document.getElementById('sm-original').value === 'true',
+    synopsis:       document.getElementById('sm-synopsis').value,
+    ai_style:       document.getElementById('sm-style').value,
+  };
+  if (body.status === 'published') body.published_at = new Date().toISOString();
+  await sbPost('shows', body, id || null);
+  btn.disabled = false; btn.textContent = '💾 Sauvegarder';
+  closeModal('show-modal');
+  await loadShowsIntoSelects();
+  loadShows();
+  loadDashboard();
+  toast(id ? 'Série mise à jour !' : 'Série créée !');
+}
+
+async function openEpModal(id=null) {
+  document.getElementById('em-id').value = id || '';
+  if (id) {
+    const eps = await sbGet('episodes', `?id=eq.${id}&select=*`);
+    const e = eps[0]; if (!e) return;
+    document.getElementById('em-show').value   = e.show_id || '';
+    document.getElementById('em-num').value    = e.episode_number || 1;
+    document.getElementById('em-dur').value    = e.duration_minutes || 12;
+    document.getElementById('em-title').value  = e.title || '';
+    document.getElementById('em-status').value = e.status || 'draft';
+    document.getElementById('em-video').value  = e.video_url || '';
+    document.getElementById('em-synopsis').value = e.synopsis || '';
+    document.getElementById('em-script').value   = e.script || '';
+    document.getElementById('ep-modal-title').textContent = 'Modifier l\'épisode';
+  } else {
+    ['em-title','em-synopsis','em-script','em-video'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('em-num').value  = '1';
+    document.getElementById('em-dur').value  = '12';
+    document.getElementById('em-status').value = 'draft';
+    document.getElementById('ep-modal-title').textContent = 'Nouvel épisode';
+  }
+  openModal('ep-modal');
+}
+
+async function saveEpisode() {
+  const id = document.getElementById('em-id').value;
+  const title = document.getElementById('em-title').value.trim();
+  const showId = document.getElementById('em-show').value;
+  if (!title || !showId) { toast('Titre et série requis', false); return; }
+  const body = {
+    show_id:        showId,
+    episode_number: parseInt(document.getElementById('em-num').value),
+    duration_minutes: parseInt(document.getElementById('em-dur').value),
+    title,
+    status:    document.getElementById('em-status').value,
+    video_url: document.getElementById('em-video').value || null,
+    synopsis:  document.getElementById('em-synopsis').value,
+    script:    document.getElementById('em-script').value,
+  };
+  if (body.status === 'published') body.published_at = new Date().toISOString();
+  await sbPost('episodes', body, id || null);
+  closeModal('ep-modal');
+  loadEpisodes();
+  loadDashboard();
+  toast(id ? 'Épisode mis à jour !' : 'Épisode créé !');
+}
+
+async function openCharModal(id=null) {
+  document.getElementById('cm-id').value = id || '';
+  if (id) {
+    const chars = await sbGet('characters', `?id=eq.${id}&select=*`);
+    const c = chars[0]; if (!c) return;
+    document.getElementById('cm-show').value  = c.show_id || '';
+    document.getElementById('cm-name').value  = c.name || '';
+    document.getElementById('cm-role').value  = c.role || '';
+    document.getElementById('cm-voice').value = c.voice_id || '';
+    document.getElementById('cm-desc').value  = c.description || '';
+  } else {
+    ['cm-name','cm-role','cm-voice','cm-desc'].forEach(id => document.getElementById(id).value = '');
+  }
+  openModal('char-modal');
+}
+
+async function saveCharacter() {
+  const id = document.getElementById('cm-id').value;
+  const name   = document.getElementById('cm-name').value.trim();
+  const showId = document.getElementById('cm-show').value;
+  if (!name || !showId) { toast('Nom et série requis', false); return; }
+  const body = {
+    show_id:     showId,
+    name,
+    role:        document.getElementById('cm-role').value,
+    voice_id:    document.getElementById('cm-voice').value || null,
+    description: document.getElementById('cm-desc').value,
+  };
+  await sbPost('characters', body, id || null);
+  closeModal('char-modal');
+  loadCharacters();
+  toast(id ? 'Personnage mis à jour !' : 'Personnage créé !');
+}
+
+// ── ACTIONS ────────────────────────────────────────────
+async function publishShow(id, currentStatus) {
+  const newStatus = currentStatus === 'published' ? 'ready' : 'published';
+  await sbPost('shows', { status: newStatus, published_at: newStatus==='published'?new Date().toISOString():null }, id);
+  loadShows();
+  toast(newStatus === 'published' ? 'Série publiée !' : 'Série dépubliée');
+}
+
+async function deleteShow(id) {
+  if (!confirm('Supprimer cette série et tous ses épisodes ?')) return;
+  await sbDelete('shows', id);
+  loadShows(); loadDashboard();
+  toast('Série supprimée');
+}
+
+async function deleteEp(id) {
+  if (!confirm('Supprimer cet épisode ?')) return;
+  await sbDelete('episodes', id);
+  loadEpisodes(); loadDashboard();
+  toast('Épisode supprimé');
+}
+
+async function deleteChar(id) {
+  if (!confirm('Supprimer ce personnage ?')) return;
+  await sbDelete('characters', id);
+  loadCharacters();
+  toast('Personnage supprimé');
+}
+
+// ── GÉNÉRATEUR IA ──────────────────────────────────────
+async function generateContent() {
+  const title = document.getElementById('g-title').value.trim();
+  const genre = document.getElementById('g-genre').value;
+  const eps   = document.getElementById('g-eps').value;
+  const dur   = document.getElementById('g-dur').value;
+  const style = document.getElementById('g-style').value;
+  const pitch = document.getElementById('g-pitch').value;
+  if (!title) { toast('Entre le titre de la série', false); return; }
+
+  document.getElementById('btn-gen').disabled = true;
+  document.getElementById('gen-loader').classList.add('show');
+  document.getElementById('gen-output').style.display = 'none';
+  setPipeline(1); setProgress(10);
+
+  const prompt = `Tu es un showrunner africain expert. Génère le contenu complet pour une série de streaming TivyX.
+SÉRIE : "${title}" | GENRE : ${genre} | ÉPISODES : ${eps} × ${dur} min | STYLE : ${style}
+${pitch ? 'PITCH : ' + pitch : ''}
+Réponds UNIQUEMENT en JSON valide sans markdown :
+{
+  "title": "titre exact",
+  "slug": "slug-url",
+  "synopsis": "synopsis 2-3 phrases",
+  "ai_style": "style visuel détaillé pour IA",
+  "characters": [
+    {"name": "Nom", "role": "Protagoniste", "description": "2 phrases", "voice": "description voix"},
+    {"name": "Nom2", "role": "Antagoniste", "description": "2 phrases", "voice": "description voix"},
+    {"name": "Nom3", "role": "Allié", "description": "2 phrases", "voice": "description voix"}
+  ],
+  "episodes": [
+    {"number": 1, "title": "Titre épisode", "synopsis": "Résumé 2 phrases"}
+  ]
+}
+Génère exactement ${eps} épisodes. Histoire cohérente, tension dramatique, culture africaine authentique.`;
+
+  try {
+    setProgress(30);
+    document.getElementById('gen-loader-txt').textContent = 'Claude génère le contenu...';
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 4000, messages: [{ role: 'user', content: prompt }] })
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '';
+    setProgress(70); setPipeline(2);
+
+    try {
+      generatedData = JSON.parse(text.replace(/```json|```/g,'').trim());
+      renderGenOutput(generatedData, eps);
+      setProgress(100); setPipeline(3);
+      toast(`Script généré — ${generatedData.episodes?.length} épisodes prêts !`);
+    } catch {
+      document.getElementById('gen-output-body').innerHTML = `<div class="ai-block">${text}</div>`;
+      document.getElementById('gen-output').style.display = 'block';
+      toast('Contenu généré — vérifiez le format', false);
+    }
+  } catch(e) {
+    toast('Erreur génération : ' + e.message, false);
+  }
+
+  document.getElementById('btn-gen').disabled = false;
+  document.getElementById('gen-loader').classList.remove('show');
+}
+
+function renderGenOutput(d, epsCount) {
+  const epsHtml = (d.episodes||[]).slice(0,parseInt(epsCount)).map(e => `
+    <div style="background:var(--bg4);border-radius:6px;padding:10px 12px;margin-bottom:8px;border-left:2px solid var(--cyan)">
+      <div style="font-family:var(--display);font-size:14px;font-weight:700;color:var(--cyan)">E${e.number} — ${e.title}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px;line-height:1.5">${e.synopsis}</div>
+    </div>`).join('');
+  const charsHtml = (d.characters||[]).map(c => `
+    <div style="background:var(--bg4);border-radius:6px;padding:10px 12px;margin-bottom:6px">
+      <div style="font-weight:700;font-size:13px">${c.name} <span style="color:var(--muted);font-weight:400;font-size:11px">— ${c.role}</span></div>
+      <div style="font-size:12px;color:var(--muted);margin-top:3px">${c.description}</div>
+      <div style="font-size:11px;color:var(--cyan);margin-top:3px">🎤 ${c.voice}</div>
+    </div>`).join('');
+  document.getElementById('gen-output-body').innerHTML = `
+    <div class="ai-block"><div class="ai-lbl">TITRE & SYNOPSIS</div>
+      <div style="font-family:var(--display);font-size:18px;font-weight:700;margin-bottom:6px">${d.title}</div>
+      <div style="color:var(--muted);font-size:12px;line-height:1.6">${d.synopsis}</div>
+    </div>
+    <div style="margin-bottom:10px"><div style="font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--muted);margin-bottom:8px">PERSONNAGES (${(d.characters||[]).length})</div>${charsHtml}</div>
+    <div><div style="font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--muted);margin-bottom:8px">ÉPISODES (${(d.episodes||[]).length})</div>${epsHtml}</div>`;
+  document.getElementById('gen-output').style.display = 'block';
+}
+
+async function saveGenerated() {
+  if (!generatedData) return;
+  const btn = document.getElementById('btn-save-gen');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Sauvegarde...';
+  try {
+    const genreSlug = document.getElementById('g-genre').value;
+    const genre = allGenres.find(g => g.slug === genreSlug);
+    const eps   = parseInt(document.getElementById('g-eps').value);
+    const dur   = parseInt(document.getElementById('g-dur').value);
+
+    // Créer la série
+    const showRes = await sbPost('shows', {
+      title:           generatedData.title,
+      slug:            generatedData.slug || generatedData.title.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,80),
+      synopsis:        generatedData.synopsis,
+      genre_id:        genre?.id || null,
+      status:          'ready',
+      target_episodes: eps,
+      ai_style:        generatedData.ai_style,
+      is_original:     true,
+    });
+    const showId = showRes?.[0]?.id;
+    if (!showId) throw new Error('Erreur création série');
+
+    // Créer les épisodes
+    if (generatedData.episodes?.length) {
+      for (const e of generatedData.episodes.slice(0, eps)) {
+        await sbPost('episodes', {
+          show_id: showId,
+          episode_number: e.number,
+          title: e.title,
+          synopsis: e.synopsis,
+          duration_minutes: dur,
+          status: 'draft',
+        });
+      }
+    }
+
+    // Créer les personnages
+    if (generatedData.characters?.length) {
+      for (const c of generatedData.characters) {
+        await sbPost('characters', {
+          show_id:     showId,
+          name:        c.name,
+          role:        c.role,
+          description: c.description,
+          voice_id:    null,
+        });
+      }
+    }
+
+    // Log du job
+    await sbPost('generation_jobs', { show_id: showId, job_type: 'script', status: 'done', output_data: generatedData });
+
+    btn.textContent = '✅ Sauvegardé !';
+    setPipeline(4);
+    await loadShowsIntoSelects();
+    loadDashboard();
+    toast(`"${generatedData.title}" créée avec ${generatedData.episodes?.length} épisodes et ${generatedData.characters?.length} personnages !`);
+    setTimeout(() => { nav('shows'); }, 1500);
+  } catch(e) {
+    btn.textContent = '❌ Erreur'; btn.disabled = false;
+    toast('Erreur sauvegarde : ' + e.message, false);
+  }
+}
+
+function clearGen() {
+  generatedData = null;
+  document.getElementById('gen-output').style.display = 'none';
+  document.getElementById('gen-prog').style.width = '0%';
+  setPipeline(0);
+}
+
+// ── PIPELINE & PROGRESS ───────────────────────────────
+function setPipeline(step) {
+  for (let i = 1; i <= 4; i++) {
+    const n = document.getElementById('pn' + i);
+    const s = document.getElementById('ps' + i);
+    if (!n) continue;
+    n.className = 'pipe-node' + (i < step ? ' done' : i === step ? ' active' : '');
+    if (i < step)  { s.textContent = '✓ Fait';    s.style.color = 'var(--green)'; }
+    if (i === step){ s.textContent = 'En cours';  s.style.color = 'var(--cyan)'; }
+    if (i > step)  { s.textContent = 'Attente';   s.style.color = 'var(--muted)'; }
+  }
+}
+function setProgress(p) { document.getElementById('gen-prog').style.width = p + '%'; }
+
+// ── TOAST ─────────────────────────────────────────────
+function toast(msg, ok=true) {
+  const t = document.getElementById('toast');
+  t.textContent = (ok ? '✦ ' : '✕ ') + msg;
+  t.style.borderColor = ok ? 'var(--cyan)' : 'var(--red)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// Fermer modals sur Escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.show').forEach(m => m.classList.remove('show'));
+});
+</script>
+</body>
+</html>
