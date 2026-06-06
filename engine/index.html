@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TivyX — Auto Episode Generator</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#04040a;--bg2:#09091a;--bg3:#0f0f22;--bg4:#15152e;
+  --gold:#f0b830;--gold2:#c08010;--teal:#00ffcc;--red:#ff3355;--purple:#9966ff;
+  --text:#f0eeff;--muted:#33335a;--sub:#7777aa;--border:#0a0a22;
+  --font:'DM Sans',sans-serif;--display:'Syne',sans-serif;--mono:'DM Mono',monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;min-height:100vh}
+
+/* TOP */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 28px;height:58px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+.logo{font-family:var(--display);font-size:20px;font-weight:800;display:flex;align-items:center;gap:8px}
+.logo-tx{color:var(--text)}.logo-x{color:var(--gold)}
+.logo-badge{font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--gold);background:rgba(240,184,48,.1);border:1px solid rgba(240,184,48,.25);padding:3px 10px;border-radius:20px}
+
+/* LAYOUT */
+.layout{display:grid;grid-template-columns:360px 1fr;gap:0;min-height:calc(100vh - 58px)}
+.left{background:var(--bg2);border-right:1px solid var(--border);padding:24px;overflow-y:auto}
+.right{padding:24px;overflow-y:auto}
+
+/* SECTIONS */
+.section-title{font-family:var(--display);font-size:13px;font-weight:700;letter-spacing:1px;color:var(--gold);margin-bottom:12px;text-transform:uppercase}
+
+/* FIELDS */
+.field{margin-bottom:13px}
+.field label{display:block;font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--muted);margin-bottom:5px;text-transform:uppercase}
+.field input,.field select,.field textarea{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:8px;font-family:var(--font);font-size:13px;outline:none;transition:.2s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--gold)}
+.field select option{background:var(--bg3)}
+.field textarea{resize:vertical;min-height:72px;line-height:1.6}
+
+/* KEYS */
+.key-row{display:flex;gap:6px;margin-bottom:10px}
+.key-row input{flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--gold);padding:8px 10px;border-radius:7px;font-family:var(--mono);font-size:11px;outline:none;transition:.2s}
+.key-row input:focus{border-color:var(--gold)}
+.key-lbl{font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--muted);margin-bottom:5px;display:block}
+.key-status{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;align-self:center}
+.key-status.ok{background:var(--teal);box-shadow:0 0 6px var(--teal)}
+.key-status.err{background:var(--red)}
+
+/* PIPELINE STEPS */
+.pipeline{display:flex;flex-direction:column;gap:0;margin-bottom:20px}
+.step{display:flex;gap:0;align-items:stretch}
+.step-line{display:flex;flex-direction:column;align-items:center;gap:0;width:28px;flex-shrink:0}
+.step-dot{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;transition:.3s;color:var(--muted);z-index:1}
+.step-dot.active{border-color:var(--gold);background:rgba(240,184,48,.15);color:var(--gold);box-shadow:0 0 10px rgba(240,184,48,.3)}
+.step-dot.done{border-color:var(--teal);background:rgba(0,255,204,.12);color:var(--teal)}
+.step-dot.error{border-color:var(--red);background:rgba(255,51,85,.12);color:var(--red)}
+.step-connector{flex:1;width:2px;background:var(--border);margin:0 auto}
+.step-connector.done{background:var(--teal)}
+.step-body{flex:1;padding:0 0 16px 12px}
+.step-name{font-size:12px;font-weight:700;margin-bottom:3px;padding-top:1px}
+.step-desc{font-size:11px;color:var(--sub);line-height:1.5}
+.step-prog{height:2px;background:var(--border);border-radius:1px;margin-top:6px;overflow:hidden}
+.step-prog-fill{height:100%;background:var(--gold);border-radius:1px;transition:width .4s;box-shadow:0 0 4px var(--gold)}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:10px 20px;border-radius:9px;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;border:none;transition:.2s;letter-spacing:.3px}
+.btn-gold{background:var(--gold);color:#000}.btn-gold:hover{background:var(--gold2)}
+.btn-gold:disabled{opacity:.4;cursor:not-allowed}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--sub)}.btn-outline:hover{border-color:var(--gold);color:var(--gold)}
+.btn-teal{background:var(--teal);color:#000}.btn-teal:hover{opacity:.85}
+.btn-red{background:rgba(255,51,85,.15);color:var(--red);border:1px solid rgba(255,51,85,.3)}
+.btn-full{width:100%;justify-content:center}
+.btn-sm{padding:6px 13px;font-size:11px}
+
+/* PREVIEW CANVAS */
+.canvas-section{margin-bottom:20px}
+.canvas-wrap{background:#000;border-radius:12px;overflow:hidden;border:1px solid var(--border);position:relative;aspect-ratio:16/9}
+canvas{width:100%;height:100%;display:block}
+.canvas-overlay{position:absolute;bottom:0;left:0;right:0;padding:12px 16px;background:linear-gradient(to top,rgba(0,0,0,.9),transparent)}
+.canvas-ep-title{font-family:var(--display);font-size:16px;font-weight:700;color:#fff;margin-bottom:2px}
+.canvas-ep-sub{font-size:11px;color:rgba(255,255,255,.5)}
+
+/* SUBTITLE BAR */
+.subtitle-bar{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;text-align:center;font-size:13px;font-weight:600;font-style:italic;min-height:40px;display:flex;align-items:center;justify-content:center;color:var(--gold);margin-top:10px}
+
+/* PLAYER CONTROLS */
+.player-row{display:flex;align-items:center;gap:10px;margin-top:10px}
+.play-btn{width:40px;height:40px;border-radius:50%;background:var(--gold);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:#000;transition:.2s;flex-shrink:0}
+.play-btn:hover{background:var(--gold2)}
+.timeline{flex:1;height:3px;background:var(--border);border-radius:2px;cursor:pointer;position:relative}
+.timeline-fill{height:100%;background:var(--gold);border-radius:2px;width:0%;transition:.1s;box-shadow:0 0 4px var(--gold)}
+.timecode{font-family:var(--mono);font-size:11px;color:var(--sub)}
+
+/* SCENE STRIP */
+.scene-strip{display:flex;gap:8px;overflow-x:auto;padding:4px 0;scrollbar-width:none;margin-top:14px}
+.scene-strip::-webkit-scrollbar{display:none}
+.scene-thumb{width:100px;height:58px;border-radius:6px;background:var(--bg3);border:2px solid var(--border);cursor:pointer;transition:.2s;flex-shrink:0;overflow:hidden;position:relative;display:flex;align-items:center;justify-content:center;font-size:22px}
+.scene-thumb.active{border-color:var(--gold);box-shadow:0 0 10px rgba(240,184,48,.3)}
+.scene-thumb img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.scene-thumb-num{position:absolute;bottom:3px;left:5px;font-size:9px;font-weight:700;color:#fff;background:rgba(0,0,0,.6);padding:1px 4px;border-radius:3px}
+.scene-thumb-status{position:absolute;top:3px;right:4px;font-size:10px}
+
+/* LOG */
+.log-wrap{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;height:160px;overflow-y:auto;font-family:var(--mono);font-size:11px;line-height:1.7;margin-top:14px}
+.log-line{display:flex;gap:8px}
+.log-ts{color:var(--muted);flex-shrink:0}
+.log-ok{color:var(--teal)}.log-err{color:var(--red)}.log-info{color:var(--text)}.log-warn{color:var(--gold)}
+
+/* EXPORT */
+.export-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.export-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;cursor:pointer;transition:.2s}
+.export-card:hover{border-color:var(--gold);background:rgba(240,184,48,.05)}
+.export-card .ec-icon{font-size:28px;margin-bottom:6px}
+.export-card .ec-name{font-size:12px;font-weight:700;margin-bottom:2px}
+.export-card .ec-desc{font-size:10px;color:var(--sub)}
+
+/* COST BAR */
+.cost-bar{display:flex;gap:0;background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px}
+.cost-item{flex:1;padding:10px 14px;border-right:1px solid var(--border);text-align:center}
+.cost-item:last-child{border-right:none}
+.cost-lbl{font-size:9px;font-weight:700;letter-spacing:.5px;color:var(--muted);margin-bottom:4px}
+.cost-val{font-family:var(--display);font-size:16px;font-weight:700;color:var(--gold)}
+
+/* SPINNER */
+.spin{width:14px;height:14px;border:2px solid rgba(240,184,48,.2);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--bg3);border:1px solid var(--gold);border-radius:10px;padding:11px 20px;font-size:13px;font-weight:600;z-index:9999;opacity:0;transition:.3s;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+
+/* DIVIDER */
+.divider{height:1px;background:var(--border);margin:16px 0}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <span class="logo-tx">TIVY</span><span class="logo-x">X</span>
+    <span class="logo-badge">AUTO EPISODE ENGINE</span>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <div style="font-size:11px;color:var(--sub)" id="cost-display">Coût épisode : $0.00</div>
+    <button class="btn btn-outline btn-sm" onclick="resetAll()">↺ Reset</button>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- ── LEFT PANEL ── -->
+  <div class="left">
+
+    <!-- API KEYS -->
+    <div class="section-title">🔑 Clés API</div>
+    <div>
+      <span class="key-lbl">Claude (Anthropic)</span>
+      <div class="key-row">
+        <input type="password" id="key-claude" placeholder="sk-ant-..."/>
+        <div class="key-status" id="dot-claude"></div>
+      </div>
+      <span class="key-lbl">Replicate</span>
+      <div class="key-row">
+        <input type="password" id="key-rep" placeholder="r8_..."/>
+        <div class="key-status" id="dot-rep"></div>
+      </div>
+      <span class="key-lbl">ElevenLabs</span>
+      <div class="key-row">
+        <input type="password" id="key-el" placeholder="sk_..."/>
+        <div class="key-status" id="dot-el"></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- CONFIG ÉPISODE -->
+    <div class="section-title">🎬 Configuration</div>
+
+    <div class="field">
+      <label>Série</label>
+      <select id="cfg-show"><option value="">Chargement...</option></select>
+    </div>
+    <div class="field">
+      <label>Numéro d'épisode</label>
+      <input type="number" id="cfg-ep-num" value="1" min="1"/>
+    </div>
+    <div class="field">
+      <label>Titre de l'épisode</label>
+      <input type="text" id="cfg-ep-title" placeholder="ex: Le Serment du Fleuve"/>
+    </div>
+    <div class="field">
+      <label>Pitch / Contexte</label>
+      <textarea id="cfg-pitch" placeholder="Ce qui se passe dans cet épisode..."></textarea>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="field">
+        <label>Nb de scènes</label>
+        <select id="cfg-scenes">
+          <option value="4">4 scènes (~4 min)</option>
+          <option value="6" selected>6 scènes (~6 min)</option>
+          <option value="8">8 scènes (~8 min)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Durée/scène (sec)</label>
+        <input type="number" id="cfg-scene-dur" value="10" min="5" max="30"/>
+      </div>
+    </div>
+    <div class="field">
+      <label>Voix narrateur (ElevenLabs ID)</label>
+      <input type="text" id="cfg-voice-narrator" placeholder="voice_id..."/>
+    </div>
+    <div class="field">
+      <label>Modèle image</label>
+      <select id="cfg-img-model">
+        <option value="flux-schnell">Flux Schnell (rapide, $0.003/img)</option>
+        <option value="flux-dev" selected>Flux Dev (qualité, $0.03/img)</option>
+      </select>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- COST ESTIMATE -->
+    <div class="cost-bar">
+      <div class="cost-item"><div class="cost-lbl">SCRIPT</div><div class="cost-val" id="est-claude">$0.004</div></div>
+      <div class="cost-item"><div class="cost-lbl">IMAGES</div><div class="cost-val" id="est-img">—</div></div>
+      <div class="cost-item"><div class="cost-lbl">VOIX</div><div class="cost-val" id="est-voice">~$0.02</div></div>
+      <div class="cost-item"><div class="cost-lbl">TOTAL</div><div class="cost-val" id="est-total">—</div></div>
+    </div>
+
+    <button class="btn btn-gold btn-full" id="btn-generate" onclick="startPipeline()">
+      ✦ Générer l'épisode automatiquement
+    </button>
+    <div style="text-align:center;font-size:11px;color:var(--muted);margin-top:8px">Script → Images → Voix → Assemblage → Upload</div>
+
+  </div>
+
+  <!-- ── RIGHT PANEL ── -->
+  <div class="right">
+
+    <!-- PIPELINE STEPS -->
+    <div class="section-title" style="margin-bottom:16px">Pipeline de génération</div>
+
+    <div class="pipeline">
+      <!-- Step 1 -->
+      <div class="step">
+        <div class="step-line">
+          <div class="step-dot" id="sd1">1</div>
+          <div class="step-connector" id="sc1"></div>
+        </div>
+        <div class="step-body">
+          <div class="step-name" id="sn1">📝 Génération du script</div>
+          <div class="step-desc" id="sdesc1">Claude crée le découpage scène par scène avec dialogues et prompts images</div>
+          <div class="step-prog"><div class="step-prog-fill" id="sp1" style="width:0%"></div></div>
+        </div>
+      </div>
+      <!-- Step 2 -->
+      <div class="step">
+        <div class="step-line">
+          <div class="step-dot" id="sd2">2</div>
+          <div class="step-connector" id="sc2"></div>
+        </div>
+        <div class="step-body">
+          <div class="step-name" id="sn2">🎨 Génération des images</div>
+          <div class="step-desc" id="sdesc2">Replicate Flux génère une image cinématique par scène</div>
+          <div class="step-prog"><div class="step-prog-fill" id="sp2" style="width:0%"></div></div>
+        </div>
+      </div>
+      <!-- Step 3 -->
+      <div class="step">
+        <div class="step-line">
+          <div class="step-dot" id="sd3">3</div>
+          <div class="step-connector" id="sc3"></div>
+        </div>
+        <div class="step-body">
+          <div class="step-name" id="sn3">🎙 Synthèse vocale</div>
+          <div class="step-desc" id="sdesc3">ElevenLabs convertit les dialogues en audio par personnage</div>
+          <div class="step-prog"><div class="step-prog-fill" id="sp3" style="width:0%"></div></div>
+        </div>
+      </div>
+      <!-- Step 4 -->
+      <div class="step">
+        <div class="step-line">
+          <div class="step-dot" id="sd4">4</div>
+          <div class="step-connector" id="sc4"></div>
+        </div>
+        <div class="step-body">
+          <div class="step-name" id="sn4">🎬 Assemblage Canvas</div>
+          <div class="step-desc" id="sdesc4">Animation Ken Burns + synchronisation audio + sous-titres</div>
+          <div class="step-prog"><div class="step-prog-fill" id="sp4" style="width:0%"></div></div>
+        </div>
+      </div>
+      <!-- Step 5 -->
+      <div class="step">
+        <div class="step-line">
+          <div class="step-dot" id="sd5">5</div>
+          <div class="step-connector" id="sc5" style="display:none"></div>
+        </div>
+        <div class="step-body">
+          <div class="step-name" id="sn5">🚀 Upload Supabase</div>
+          <div class="step-desc" id="sdesc5">Sauvegarde dans Storage + mise à jour de la base de données</div>
+          <div class="step-prog"><div class="step-prog-fill" id="sp5" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CANVAS PREVIEW -->
+    <div class="canvas-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div class="section-title" style="margin-bottom:0">Prévisualisation</div>
+        <div style="font-size:11px;color:var(--sub)" id="preview-label">En attente de génération...</div>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="preview-canvas" width="854" height="480"></canvas>
+        <div class="canvas-overlay">
+          <div class="canvas-ep-title" id="canvas-ep-title">—</div>
+          <div class="canvas-ep-sub" id="canvas-scene-label">—</div>
+        </div>
+      </div>
+      <div class="subtitle-bar" id="subtitle-bar">Les sous-titres s'afficheront ici pendant la lecture</div>
+
+      <!-- Scene strip -->
+      <div class="scene-strip" id="scene-strip"></div>
+
+      <!-- Player -->
+      <div class="player-row">
+        <button class="play-btn" id="play-btn" onclick="togglePlay()">▶</button>
+        <div class="timeline" onclick="seekTimeline(event)">
+          <div class="timeline-fill" id="timeline-fill"></div>
+        </div>
+        <span class="timecode" id="timecode">0:00 / 0:00</span>
+      </div>
+    </div>
+
+    <!-- LOG -->
+    <div class="section-title">📋 Journal</div>
+    <div class="log-wrap" id="log"></div>
+
+    <!-- EXPORT -->
+    <div class="section-title" style="margin-top:16px">📤 Export & Publication</div>
+    <div class="export-grid" id="export-grid">
+      <div class="export-card" onclick="exportFrames()">
+        <div class="ec-icon">🖼</div>
+        <div class="ec-name">Exporter les images</div>
+        <div class="ec-desc">PNG de chaque scène</div>
+      </div>
+      <div class="export-card" onclick="exportScript()">
+        <div class="ec-icon">📝</div>
+        <div class="ec-name">Exporter le script</div>
+        <div class="ec-desc">JSON + texte</div>
+      </div>
+      <div class="export-card" onclick="uploadToSupabase()" id="upload-card" style="opacity:.4;cursor:not-allowed">
+        <div class="ec-icon">🚀</div>
+        <div class="ec-name">Publier sur TivyX</div>
+        <div class="ec-desc">Supabase Storage + DB</div>
+      </div>
+      <div class="export-card" onclick="recordCanvas()" id="record-card" style="opacity:.4;cursor:not-allowed">
+        <div class="ec-icon">🎬</div>
+        <div class="ec-name">Capturer en MP4</div>
+        <div class="ec-desc">MediaRecorder API</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────
+const SB_URL  = 'https://crlfkiniwalhzvpxrqav.supabase.co';
+const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNybGZraW5pd2FsaHp2cHhycWF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NzAyODIsImV4cCI6MjA5NjI0NjI4Mn0.vEISYPOPQQZeO6US3C_6pTCDPDup5iUI002euEM-cdE';
+const { createClient } = supabase;
+const sb = createClient(SB_URL, SB_KEY);
+
+// ── STATE ────────────────────────────────────────────
+let STATE = {
+  scenes: [],       // [{num, title, description, image_prompt, dialogues:[], imageUrl, audioUrls:[]}]
+  currentScene: 0,
+  isPlaying: false,
+  playTimer: null,
+  playTime: 0,
+  costs: { claude:0, images:0, voices:0 },
+  generatedShowId: null,
+  generatedEpId: null,
+  mediaRecorder: null,
+  recordedChunks: [],
+};
+
+const canvas = document.getElementById('preview-canvas');
+const ctx    = canvas.getContext('2d');
+
+// ── INIT ─────────────────────────────────────────────
+async function init() {
+  await loadShows();
+  updateEstimates();
+  document.getElementById('cfg-scenes').addEventListener('change', updateEstimates);
+  document.getElementById('cfg-img-model').addEventListener('change', updateEstimates);
+  drawBlank();
+}
+
+async function loadShows() {
+  const { data } = await sb.from('shows').select('id,title,slug,ai_style').eq('status','published').order('title');
+  const shows = data || [];
+  const sel = document.getElementById('cfg-show');
+  sel.innerHTML = shows.map(s => `<option value="${s.id}" data-style="${s.ai_style||''}">${s.title}</option>`).join('');
+}
+
+function updateEstimates() {
+  const nScenes = parseInt(document.getElementById('cfg-scenes').value);
+  const model   = document.getElementById('cfg-img-model').value;
+  const imgCost = model === 'flux-schnell' ? 0.003 : 0.03;
+  const total   = 0.004 + (nScenes * imgCost) + (nScenes * 0.003);
+  document.getElementById('est-img').textContent   = '$' + (nScenes * imgCost).toFixed(3);
+  document.getElementById('est-total').textContent  = '$' + total.toFixed(3);
+  document.getElementById('cost-display').textContent = 'Coût estimé : $' + total.toFixed(3);
+}
+
+// ── PIPELINE ─────────────────────────────────────────
+async function startPipeline() {
+  const claudeKey = document.getElementById('key-claude').value.trim();
+  const repKey    = document.getElementById('key-rep').value.trim();
+  const elKey     = document.getElementById('key-el').value.trim();
+  const showId    = document.getElementById('cfg-show').value;
+  const epNum     = parseInt(document.getElementById('cfg-ep-num').value);
+  const epTitle   = document.getElementById('cfg-ep-title').value.trim();
+  const pitch     = document.getElementById('cfg-pitch').value.trim();
+  const nScenes   = parseInt(document.getElementById('cfg-scenes').value);
+
+  if (!claudeKey) { toast('Entre ta clé Claude API', false); return; }
+  if (!showId)    { toast('Sélectionne une série', false); return; }
+  if (!epTitle)   { toast('Entre le titre de l\'épisode', false); return; }
+
+  // Marquer dots API
+  markDot('claude', !!claudeKey);
+  markDot('rep',    !!repKey);
+  markDot('el',     !!elKey);
+
+  document.getElementById('btn-generate').disabled = true;
+  STATE = { ...STATE, scenes:[], currentScene:0, isPlaying:false, costs:{claude:0,images:0,voices:0} };
+  resetSteps();
+
+  // Récupérer le style de la série sélectionnée
+  const showSel   = document.getElementById('cfg-show');
+  const showStyle = showSel.options[showSel.selectedIndex]?.dataset.style || 'cinematic african drama, warm tones, 8k photorealistic';
+  const showTitle = showSel.options[showSel.selectedIndex]?.text || '';
+
+  try {
+    // ── STEP 1 : SCRIPT ──
+    setStep(1, 'active');
+    log('info', `Génération du script — ${nScenes} scènes...`);
+    await generateScript(claudeKey, showTitle, epTitle, pitch, nScenes, showStyle);
+    setStep(1, 'done'); setStepProg(1, 100);
+    log('ok', `Script généré — ${STATE.scenes.length} scènes`);
+    renderSceneStrip();
+
+    // ── STEP 2 : IMAGES ──
+    setStep(2, 'active');
+    if (repKey) {
+      await generateImages(repKey, nScenes, showStyle);
+      setStep(2, 'done'); setStepProg(2, 100);
+      log('ok', `${nScenes} images générées`);
+    } else {
+      log('warn', 'Clé Replicate manquante — images placeholder');
+      setStep(2, 'done');
+    }
+    renderSceneStrip();
+
+    // ── STEP 3 : VOIX ──
+    setStep(3, 'active');
+    if (elKey) {
+      await generateVoices(elKey, nScenes);
+      setStep(3, 'done'); setStepProg(3, 100);
+      log('ok', 'Voix synthétisées');
+    } else {
+      log('warn', 'Clé ElevenLabs manquante — pas d\'audio');
+      setStep(3, 'done');
+    }
+
+    // ── STEP 4 : ASSEMBLAGE ──
+    setStep(4, 'active');
+    log('info', 'Assemblage du montage...');
+    await assemblePreview();
+    setStep(4, 'done'); setStepProg(4, 100);
+    log('ok', 'Montage assemblé — prêt à lire');
+
+    // Activer les exports
+    document.getElementById('upload-card').style.opacity = '1';
+    document.getElementById('upload-card').style.cursor  = 'pointer';
+    document.getElementById('record-card').style.opacity = '1';
+    document.getElementById('record-card').style.cursor  = 'pointer';
+
+    // ── STEP 5 : UPLOAD ──
+    setStep(5, 'active');
+    await uploadToSupabase();
+
+    toast(`Épisode "${epTitle}" généré avec succès !`);
+
+  } catch(e) {
+    log('err', 'Erreur : ' + e.message);
+    toast('Erreur : ' + e.message, false);
+  }
+
+  document.getElementById('btn-generate').disabled = false;
+}
+
+// ── STEP 1 : SCRIPT CLAUDE ───────────────────────────
+async function generateScript(key, showTitle, epTitle, pitch, nScenes, style) {
+  const prompt = `Tu es un showrunner africain. Génère le script d'un épisode de motion comic TivyX.
+
+SÉRIE : ${showTitle}
+ÉPISODE : "${epTitle}"
+PITCH : ${pitch || 'Un épisode dramatique et intense'}
+NOMBRE DE SCÈNES : ${nScenes}
+STYLE VISUEL : ${style}
+
+Réponds UNIQUEMENT en JSON valide sans markdown :
+{
+  "scenes": [
+    {
+      "num": 1,
+      "title": "Titre court",
+      "image_prompt": "Prompt image en anglais, 40+ mots, cinématique, style africain, pas de texte ni watermark",
+      "dialogues": [
+        {"char": "narrator", "text": "Narration en français, 1-2 phrases max"},
+        {"char": "hero", "text": "Réplique courte du héros"}
+      ]
+    }
+  ]
+}
+
+Génère exactement ${nScenes} scènes. Chaque scène 1-2 dialogues maximum. Style africain dramatique.`;
+
+  setStepProg(1, 30);
+  const res  = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 3000, messages: [{ role: 'user', content: prompt }] })
+  });
+
+  if (!res.ok) throw new Error('Claude API error ' + res.status);
+  const data = await res.json();
+  const text = data.content?.[0]?.text?.replace(/```json|```/g,'').trim() || '{}';
+  const parsed = JSON.parse(text);
+  STATE.scenes = (parsed.scenes || []).map(s => ({ ...s, imageUrl: null, audioUrls: [] }));
+  STATE.costs.claude += 0.004;
+  updateCostDisplay();
+  setStepProg(1, 80);
+}
+
+// ── STEP 2 : IMAGES REPLICATE ────────────────────────
+async function generateImages(key, nScenes, baseStyle) {
+  for (let i = 0; i < STATE.scenes.length; i++) {
+    const scene = STATE.scenes[i];
+    const pct   = Math.round(((i) / STATE.scenes.length) * 100);
+    setStepProg(2, pct);
+    log('info', `Image ${i+1}/${STATE.scenes.length} : ${scene.title}...`);
+
+    try {
+      const model = document.getElementById('cfg-img-model').value;
+      const cost  = model === 'flux-schnell' ? 0.003 : 0.03;
+      const prompt = scene.image_prompt + ', ' + baseStyle + ', no text, no watermark';
+
+      // Create prediction
+      const createRes = await fetch(`https://api.replicate.com/v1/models/black-forest-labs/${model}/predictions`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Token ' + key, 'Content-Type': 'application/json', 'Prefer': 'wait=60' },
+        body: JSON.stringify({ input: { prompt, width: 1344, height: 768, num_outputs: 1, num_inference_steps: model==='flux-schnell'?4:28 } })
+      });
+
+      if (!createRes.ok) { log('warn', `Image ${i+1} ignorée (${createRes.status})`); continue; }
+      const pred = await createRes.json();
+
+      let imgUrl = null;
+      if (pred.status === 'succeeded') {
+        imgUrl = Array.isArray(pred.output) ? pred.output[0] : pred.output;
+      } else if (pred.id) {
+        // Poll
+        for (let p = 0; p < 30; p++) {
+          await sleep(2000);
+          const r = await fetch('https://api.replicate.com/v1/predictions/' + pred.id, {
+            headers: { 'Authorization': 'Token ' + key }
+          });
+          const d = await r.json();
+          if (d.status === 'succeeded') { imgUrl = Array.isArray(d.output)?d.output[0]:d.output; break; }
+          if (d.status === 'failed') break;
+        }
+      }
+
+      if (imgUrl) {
+        STATE.scenes[i].imageUrl = imgUrl;
+        STATE.costs.images += cost;
+        updateCostDisplay();
+        renderSceneStrip();
+        // Dessiner la scène courante si c'est la première
+        if (i === 0) drawScene(STATE.scenes[0]);
+        log('ok', `Image ${i+1} générée`);
+      }
+    } catch(e) { log('warn', `Image ${i+1} échouée : ${e.message}`); }
+  }
+}
+
+// ── STEP 3 : VOIX ELEVENLABS ─────────────────────────
+async function generateVoices(key, nScenes) {
+  const voiceId   = document.getElementById('cfg-voice-narrator').value.trim();
+  const allDialogs = STATE.scenes.flatMap((s,si) => (s.dialogues||[]).map((d,di) => ({...d, si, di})));
+
+  for (let i = 0; i < allDialogs.length; i++) {
+    const dlg = allDialogs[i];
+    const pct = Math.round((i / allDialogs.length) * 100);
+    setStepProg(3, pct);
+
+    if (!dlg.text?.trim()) continue;
+    const vid = voiceId || 'pNInz6obpgDQGcFmaJgB'; // Adam (default ElevenLabs)
+
+    try {
+      const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${vid}/stream`, {
+        method: 'POST',
+        headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: dlg.text,
+          model_id: 'eleven_multilingual_v2',
+          voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0.3 }
+        })
+      });
+      if (r.ok) {
+        const blob   = await r.blob();
+        const audioUrl = URL.createObjectURL(blob);
+        if (!STATE.scenes[dlg.si].audioUrls) STATE.scenes[dlg.si].audioUrls = [];
+        STATE.scenes[dlg.si].audioUrls[dlg.di] = audioUrl;
+        STATE.costs.voices += dlg.text.length * 0.0000002;
+        updateCostDisplay();
+        log('ok', `Audio scène ${dlg.si+1} — ${dlg.char}`);
+      }
+    } catch(e) { log('warn', `Audio ignoré : ${e.message}`); }
+  }
+}
+
+// ── STEP 4 : ASSEMBLAGE CANVAS ───────────────────────
+async function assemblePreview() {
+  const epTitle  = document.getElementById('cfg-ep-title').value;
+  const sceneDur = parseInt(document.getElementById('cfg-scene-dur').value) || 10;
+  STATE.totalDuration = STATE.scenes.length * sceneDur;
+
+  document.getElementById('canvas-ep-title').textContent = epTitle;
+  document.getElementById('preview-label').textContent   = `${STATE.scenes.length} scènes · ${formatDuration(STATE.totalDuration)}`;
+
+  // Afficher la première scène
+  if (STATE.scenes[0]) drawScene(STATE.scenes[0]);
+  updateSceneLabel();
+  setStepProg(4, 60);
+  await sleep(300);
+  setStepProg(4, 100);
+}
+
+// ── STEP 5 : UPLOAD SUPABASE ─────────────────────────
+async function uploadToSupabase() {
+  const showId  = document.getElementById('cfg-show').value;
+  const epNum   = parseInt(document.getElementById('cfg-ep-num').value);
+  const epTitle = document.getElementById('cfg-ep-title').value.trim();
+  const sceneDur= parseInt(document.getElementById('cfg-scene-dur').value) || 10;
+  const dur     = Math.ceil(STATE.scenes.length * sceneDur / 60);
+
+  setStepProg(5, 20);
+  log('info', 'Sauvegarde en base Supabase...');
+
+  // Mettre à jour l'épisode en base
+  const { data: existing } = await sb.from('episodes')
+    .select('id').eq('show_id', showId).eq('episode_number', epNum).single();
+
+  const epData = {
+    show_id:          showId,
+    episode_number:   epNum,
+    title:            epTitle,
+    synopsis:         STATE.scenes.map(s => s.title).join(' · '),
+    duration_minutes: dur || 12,
+    status:           'video_ready',
+    script:           JSON.stringify(STATE.scenes.map(s => ({title:s.title, dialogues:s.dialogues}))),
+    ai_prompts:       { scenes: STATE.scenes.map(s => ({num:s.num, image_prompt:s.image_prompt})) },
+  };
+
+  setStepProg(5, 50);
+
+  if (existing?.id) {
+    await sb.from('episodes').update(epData).eq('id', existing.id);
+    STATE.generatedEpId = existing.id;
+    log('ok', 'Épisode mis à jour en base');
+  } else {
+    const { data } = await sb.from('episodes').insert(epData).select('id').single();
+    STATE.generatedEpId = data?.id;
+    log('ok', 'Épisode créé en base (id: ' + STATE.generatedEpId + ')');
+  }
+
+  // Log le job
+  await sb.from('generation_jobs').insert({
+    show_id:    showId,
+    episode_id: STATE.generatedEpId,
+    job_type:   'video',
+    status:     'done',
+    output_data: { scenes: STATE.scenes.length, cost_usd: totalCost(), engine: 'motion-comic-v1' }
+  });
+
+  setStepProg(5, 100);
+  setStep(5, 'done');
+  log('ok', '✅ Épisode publié sur TivyX !');
+}
+
+// ── CANVAS PLAYER ────────────────────────────────────
+function drawScene(scene) {
+  if (!scene) { drawBlank(); return; }
+  STATE.currentScene = (scene.num || 1) - 1;
+
+  document.getElementById('canvas-scene-label').textContent = `Scène ${scene.num} — ${scene.title}`;
+  document.getElementById('canvas-ep-title').textContent    = document.getElementById('cfg-ep-title').value || 'TivyX';
+
+  // Sous-titres
+  const firstDlg = scene.dialogues?.[0];
+  document.getElementById('subtitle-bar').textContent = firstDlg?.text || '—';
+
+  if (scene.imageUrl) {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Ken Burns subtle zoom
+      const scale = 1.03;
+      const dx = -(canvas.width * (scale - 1)) / 2;
+      const dy = -(canvas.height * (scale - 1)) / 2;
+      ctx.save();
+      ctx.translate(dx, dy);
+      ctx.scale(scale, scale);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      ctx.restore();
+      // Letterbox bars
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, 36);
+      ctx.fillRect(0, canvas.height - 36, canvas.width, 36);
+      // TivyX watermark
+      ctx.fillStyle = 'rgba(240,184,48,0.6)';
+      ctx.font = 'bold 12px Syne';
+      ctx.fillText('TIVYX ORIGINAL', 14, 22);
+    };
+    img.src = scene.imageUrl;
+  } else {
+    drawPlaceholder(scene);
+  }
+  updateSceneLabel();
+}
+
+function drawPlaceholder(scene) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#09090f';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = 'rgba(240,184,48,0.5)';
+  ctx.font = 'bold 28px Syne';
+  ctx.textAlign = 'center';
+  ctx.fillText(`SCÈNE ${scene?.num||'?'}`, canvas.width/2, canvas.height/2 - 10);
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.font = '14px DM Sans';
+  ctx.fillText(scene?.title||'', canvas.width/2, canvas.height/2 + 16);
+  ctx.textAlign = 'left';
+}
+
+function drawBlank() {
+  ctx.fillStyle = '#09090f';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = 'rgba(240,184,48,0.2)';
+  ctx.font = 'bold 20px Syne';
+  ctx.textAlign = 'center';
+  ctx.fillText('TIVYX AUTO ENGINE', canvas.width/2, canvas.height/2);
+  ctx.font = '12px DM Sans';
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.fillText('Configure et lance la génération', canvas.width/2, canvas.height/2 + 24);
+  ctx.textAlign = 'left';
+}
+
+function togglePlay() {
+  if (!STATE.scenes.length) { toast('Génère d\'abord un épisode', false); return; }
+  STATE.isPlaying = !STATE.isPlaying;
+  document.getElementById('play-btn').textContent = STATE.isPlaying ? '⏸' : '▶';
+  if (STATE.isPlaying) startPlayback();
+  else stopPlayback();
+}
+
+let currentAudio = null;
+function startPlayback() {
+  const sceneDur = parseInt(document.getElementById('cfg-scene-dur').value) || 10;
+  const total    = STATE.scenes.length * sceneDur;
+  let sceneTime  = 0;
+  let dlgIdx     = 0;
+
+  const tick = () => {
+    if (!STATE.isPlaying) return;
+    STATE.playTime += 0.1;
+    sceneTime += 0.1;
+
+    const pct = Math.min((STATE.playTime / total) * 100, 100);
+    document.getElementById('timeline-fill').style.width = pct + '%';
+    document.getElementById('timecode').textContent = formatDuration(STATE.playTime) + ' / ' + formatDuration(total);
+
+    if (sceneTime >= sceneDur) {
+      sceneTime = 0; dlgIdx = 0;
+      if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+      STATE.currentScene++;
+      if (STATE.currentScene >= STATE.scenes.length) { endPlayback(); return; }
+      const scene = STATE.scenes[STATE.currentScene];
+      drawScene(scene);
+      highlightSceneThumb(STATE.currentScene);
+    }
+
+    // Play audio
+    const scene = STATE.scenes[STATE.currentScene];
+    if (scene?.audioUrls?.[dlgIdx] && !currentAudio) {
+      const dlgStart = dlgIdx * 3;
+      if (sceneTime >= dlgStart) {
+        currentAudio = new Audio(scene.audioUrls[dlgIdx]);
+        currentAudio.play().catch(()=>{});
+        if (scene.dialogues?.[dlgIdx]) {
+          document.getElementById('subtitle-bar').textContent = scene.dialogues[dlgIdx].text;
+        }
+        currentAudio.onended = () => { currentAudio = null; dlgIdx++; };
+      }
+    }
+
+    STATE.playTimer = setTimeout(tick, 100);
+  };
+  tick();
+}
+
+function stopPlayback() {
+  if (STATE.playTimer) clearTimeout(STATE.playTimer);
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+}
+
+function endPlayback() {
+  STATE.isPlaying = false;
+  document.getElementById('play-btn').textContent = '▶';
+  STATE.playTime = 0; STATE.currentScene = 0;
+  document.getElementById('timeline-fill').style.width = '0%';
+  drawScene(STATE.scenes[0]);
+}
+
+function seekTimeline(e) {
+  const bar   = e.currentTarget;
+  const pct   = e.offsetX / bar.offsetWidth;
+  const total = STATE.scenes.length * (parseInt(document.getElementById('cfg-scene-dur').value)||10);
+  STATE.playTime     = pct * total;
+  STATE.currentScene = Math.min(Math.floor(pct * STATE.scenes.length), STATE.scenes.length-1);
+  document.getElementById('timeline-fill').style.width = (pct*100) + '%';
+  drawScene(STATE.scenes[STATE.currentScene]);
+}
+
+function updateSceneLabel() {
+  const s = STATE.scenes[STATE.currentScene];
+  document.getElementById('canvas-scene-label').textContent = s ? `Scène ${s.num} / ${STATE.scenes.length} — ${s.title}` : '—';
+}
+
+// ── SCENE STRIP ──────────────────────────────────────
+function renderSceneStrip() {
+  const strip = document.getElementById('scene-strip');
+  strip.innerHTML = STATE.scenes.map((s, i) => `
+    <div class="scene-thumb${i===STATE.currentScene?' active':''}" id="sth-${i}" onclick="jumpToScene(${i})">
+      ${s.imageUrl ? `<img src="${s.imageUrl}" loading="lazy"/>` : '🎬'}
+      <span class="scene-thumb-num">S${s.num}</span>
+      <span class="scene-thumb-status">${s.imageUrl?'✓':''}</span>
+    </div>`).join('');
+}
+
+function jumpToScene(idx) {
+  STATE.currentScene = idx;
+  drawScene(STATE.scenes[idx]);
+  highlightSceneThumb(idx);
+  document.getElementById('subtitle-bar').textContent = STATE.scenes[idx]?.dialogues?.[0]?.text || '—';
+}
+
+function highlightSceneThumb(idx) {
+  document.querySelectorAll('.scene-thumb').forEach((t,i) => t.classList.toggle('active', i===idx));
+}
+
+// ── EXPORTS ──────────────────────────────────────────
+function exportFrames() {
+  const imgsWithUrl = STATE.scenes.filter(s => s.imageUrl);
+  if (!imgsWithUrl.length) { toast('Génère d\'abord les images', false); return; }
+  imgsWithUrl.forEach((s, i) => {
+    setTimeout(() => {
+      const a = document.createElement('a');
+      a.href = s.imageUrl;
+      a.download = `tivyx_scene_${s.num}.jpg`;
+      a.click();
+    }, i * 300);
+  });
+  toast(`${imgsWithUrl.length} images téléchargées`);
+}
+
+function exportScript() {
+  if (!STATE.scenes.length) { toast('Génère d\'abord le script', false); return; }
+  const epTitle = document.getElementById('cfg-ep-title').value;
+  const showSel = document.getElementById('cfg-show');
+  const data = {
+    serie:    showSel.options[showSel.selectedIndex]?.text,
+    episode:  document.getElementById('cfg-ep-num').value,
+    title:    epTitle,
+    scenes:   STATE.scenes.map(s => ({ num:s.num, title:s.title, image_prompt:s.image_prompt, dialogues:s.dialogues }))
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = `tivyx_script_${epTitle.replace(/\s+/g,'-')}.json`;
+  a.click();
+  toast('Script exporté en JSON');
+}
+
+async function recordCanvas() {
+  if (!STATE.scenes.length) { toast('Génère d\'abord l\'épisode', false); return; }
+  if (!window.MediaRecorder) { toast('MediaRecorder non supporté', false); return; }
+
+  toast('Enregistrement canvas — lecture en cours...');
+  const stream = canvas.captureStream(24);
+  STATE.recordedChunks = [];
+  STATE.mediaRecorder  = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+  STATE.mediaRecorder.ondataavailable = e => { if (e.data.size) STATE.recordedChunks.push(e.data); };
+  STATE.mediaRecorder.onstop = () => {
+    const blob = new Blob(STATE.recordedChunks, { type: 'video/webm' });
+    const a    = document.createElement('a');
+    a.href     = URL.createObjectURL(blob);
+    const epTitle = document.getElementById('cfg-ep-title').value;
+    a.download = `tivyx_${epTitle.replace(/\s+/g,'-')}.webm`;
+    a.click();
+    toast('Vidéo WebM téléchargée !');
+  };
+
+  STATE.mediaRecorder.start();
+  // Lancer la lecture automatique
+  STATE.isPlaying = true;
+  STATE.playTime  = 0;
+  STATE.currentScene = 0;
+  document.getElementById('play-btn').textContent = '⏸';
+  startPlayback();
+
+  // Arrêter après la durée totale
+  const total = STATE.scenes.length * (parseInt(document.getElementById('cfg-scene-dur').value)||10) * 1000;
+  setTimeout(() => {
+    STATE.isPlaying = false;
+    stopPlayback();
+    STATE.mediaRecorder.stop();
+    document.getElementById('play-btn').textContent = '▶';
+  }, total + 500);
+}
+
+// ── STEPS UI ─────────────────────────────────────────
+function setStep(n, state) {
+  const dot  = document.getElementById('sd' + n);
+  const conn = document.getElementById('sc' + n);
+  dot.className = 'step-dot ' + state;
+  if (state === 'done' && conn) conn.classList.add('done');
+  if (state === 'done') dot.textContent = '✓';
+  else if (state === 'error') dot.textContent = '✗';
+  else dot.textContent = n;
+}
+function setStepProg(n, pct) { document.getElementById('sp' + n).style.width = pct + '%'; }
+function resetSteps() { for(let i=1;i<=5;i++){setStep(i,'');setStepProg(i,0);} }
+
+// ── LOG ───────────────────────────────────────────────
+function log(type, msg) {
+  const el  = document.getElementById('log');
+  const ts  = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const cls = {ok:'log-ok',err:'log-err',info:'log-info',warn:'log-warn'}[type]||'log-info';
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="log-ts">${ts}</span><span class="${cls}">${msg}</span>`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+// ── UTILS ─────────────────────────────────────────────
+function markDot(id, ok) {
+  const el = document.getElementById('dot-' + id);
+  if (el) { el.className = 'key-status' + (ok?' ok':''); }
+}
+function totalCost() { return STATE.costs.claude + STATE.costs.images + STATE.costs.voices; }
+function updateCostDisplay() {
+  document.getElementById('cost-display').textContent = 'Coût réel : $' + totalCost().toFixed(4);
+}
+function formatDuration(s) {
+  const m = Math.floor(s/60); const sec = Math.floor(s%60);
+  return `${m}:${String(sec).padStart(2,'0')}`;
+}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function resetAll() {
+  STATE = { scenes:[], currentScene:0, isPlaying:false, playTimer:null, playTime:0, costs:{claude:0,images:0,voices:0} };
+  document.getElementById('log').innerHTML = '';
+  document.getElementById('scene-strip').innerHTML = '';
+  document.getElementById('subtitle-bar').textContent = 'Les sous-titres s\'afficheront ici';
+  document.getElementById('timeline-fill').style.width = '0%';
+  document.getElementById('timecode').textContent = '0:00 / 0:00';
+  resetSteps();
+  drawBlank();
+  document.getElementById('upload-card').style.opacity = '.4';
+  document.getElementById('record-card').style.opacity = '.4';
+}
+function toast(msg, ok=true) {
+  const t = document.getElementById('toast');
+  t.textContent = (ok?'✦ ':'✕ ') + msg;
+  t.style.borderColor = ok ? 'var(--gold)' : 'var(--red)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+init();
+</script>
+</body>
+</html>
