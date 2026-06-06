@@ -2,36 +2,14 @@
   "version": 2,
   "name": "tivyx",
   "headers": [
-    {
-      "source": "/sw.js",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-        { "key": "Service-Worker-Allowed", "value": "/" }
-      ]
-    },
-    {
-      "source": "/manifest.json",
-      "headers": [
-        { "key": "Content-Type", "value": "application/manifest+json" }
-      ]
-    },
-    {
-      "source": "/icons/(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-      ]
-    },
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "X-XSS-Protection", "value": "1; mode=block" }
-      ]
-    }
+    { "source": "/sw.js",        "headers": [{"key":"Cache-Control","value":"no-cache, no-store, must-revalidate"},{"key":"Service-Worker-Allowed","value":"/"}] },
+    { "source": "/manifest.json","headers": [{"key":"Content-Type","value":"application/manifest+json"}] },
+    { "source": "/icons/(.*)",   "headers": [{"key":"Cache-Control","value":"public, max-age=31536000, immutable"}] },
+    { "source": "/(.*)",         "headers": [{"key":"X-Content-Type-Options","value":"nosniff"},{"key":"X-Frame-Options","value":"DENY"}] }
   ],
   "rewrites": [
-    { "source": "/admin", "destination": "/admin/index.html" },
-    { "source": "/((?!sw.js|manifest.json|offline.html|icons/.*|admin/.*).*)", "destination": "/index.html" }
+    { "source": "/admin",  "destination": "/admin/index.html" },
+    { "source": "/videos", "destination": "/videos/index.html" },
+    { "source": "/((?!sw.js|manifest.json|offline.html|icons/.*|admin/.*|videos/.*).*)", "destination": "/index.html" }
   ]
 }
