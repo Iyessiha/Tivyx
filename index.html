@@ -70,6 +70,7 @@ nav.scrolled{background:rgba(6,6,9,.97);backdrop-filter:blur(16px);-webkit-backd
 
 /* ── HERO (mobile) ── */
 .hero{position:relative;height:70vh;min-height:480px;display:flex;flex-direction:column;justify-content:flex-end;padding:24px 20px;overflow:hidden}
+.hero-img{position:absolute;inset:0;background-size:cover;background-position:center;transition:opacity .5s}
 .hero-bg{position:absolute;inset:0;background:linear-gradient(to top,var(--bg) 0%,rgba(6,6,9,.3) 60%,transparent 100%)}
 .hero-gradient{position:absolute;inset:0;background:radial-gradient(ellipse at 60% 30%,rgba(232,168,56,.08),transparent 60%)}
 .hero-emoji{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:120px;opacity:.15;filter:blur(2px)}
@@ -272,24 +273,25 @@ section.tight{padding:0 20px 20px}
 <!-- HOME -->
 <div class="page show" id="page-home">
   <div class="hero">
+    <div class="hero-img" id="hero-img"></div>
     <div class="hero-gradient"></div>
     <div class="hero-bg"></div>
-    <div class="hero-emoji">🏜️</div>
+    <div class="hero-emoji" id="hero-emoji">🏜️</div>
     <div class="hero-content">
-      <div class="hero-badge">★ TIVYX ORIGINAL · HIGHFIELDS</div>
-      <div class="hero-title">Les Héritiers<br>du <em>Sahel</em></div>
-      <div class="hero-meta">
+      <div class="hero-badge" id="hero-badge">★ TIVYX ORIGINAL · HIGHFIELDS</div>
+      <div class="hero-title" id="hero-title">Les Héritiers<br>du <em>Sahel</em></div>
+      <div class="hero-meta" id="hero-meta">
         <span style="color:var(--gold)">★★★★☆</span>
         <span class="hero-tag">Historique</span>
         <span class="hero-tag">+16</span>
         <span class="hero-tag">8 épisodes</span>
       </div>
-      <div class="hero-desc">Saga épique dans le Mali du XIXe siècle — une création Highfields.</div>
+      <div class="hero-desc" id="hero-desc">Saga épique dans le Mali du XIXe siècle — une création Highfields.</div>
       <div class="hero-actions">
-        <button class="btn-play-hero" onclick="openPlayer({title:'Les Héritiers du Sahel',ep:'S1E1 · Le Serment du Fleuve'})">
+        <button class="btn-play-hero" id="hero-play">
           <span>▶</span> Regarder
         </button>
-        <button class="btn-list" onclick="addToList('Les Héritiers du Sahel')">＋</button>
+        <button class="btn-list" id="hero-add">＋</button>
       </div>
     </div>
   </div>
@@ -483,6 +485,7 @@ async function init() {
     if (ev === 'SIGNED_IN')  { await setUser(session.user); }
     if (ev === 'SIGNED_OUT') { clearUser(); }
   });
+  renderHero();
   renderHome();
   renderCatalog();
   renderPlans();
@@ -689,6 +692,41 @@ function getDemoPlans() {
 }
 
 // ── RENDER ────────────────────────────────────────────
+function renderHero() {
+  // Priorité : séries en vedette avec bannière → originals avec bannière → première série
+  const featured = allShows.filter(s => s.is_featured && s.banner_url);
+  const pool = featured.length ? featured : allShows.filter(s => s.is_original && s.banner_url);
+  const show = pool.length ? pool[Math.floor(Math.random() * pool.length)] : allShows[0];
+  if (!show) return;
+
+  const img = document.getElementById('hero-img');
+  const emoji = document.getElementById('hero-emoji');
+  if (show.banner_url) {
+    img.style.backgroundImage = `url('${show.banner_url}')`;
+    emoji.style.display = 'none';
+  } else {
+    img.style.backgroundImage = '';
+    emoji.style.display = '';
+  }
+
+  // Titre avec le dernier mot en doré
+  const words = (show.title || '').split(' ');
+  const last = words.pop();
+  document.getElementById('hero-title').innerHTML =
+    words.length ? `${words.join(' ')} <em>${last}</em>` : `<em>${last}</em>`;
+
+  document.getElementById('hero-badge').textContent =
+    show.is_original ? '★ TIVYX ORIGINAL · HIGHFIELDS' : '★ À LA UNE';
+  document.getElementById('hero-meta').innerHTML = `
+    <span style="color:var(--gold)">★★★★☆</span>
+    <span class="hero-tag">${show.genres?.name || '—'}</span>
+    <span class="hero-tag">${show.rating || '+16'}</span>
+    <span class="hero-tag">${show.target_episodes || '?'} épisodes</span>`;
+  document.getElementById('hero-desc').textContent = show.synopsis || '';
+  document.getElementById('hero-play').onclick = () => openDetail(show.id);
+  document.getElementById('hero-add').onclick = () => addToList(show.title);
+}
+
 function makeCard(show, i, wide=false) {
   const emoji = EMOJIS[i%EMOJIS.length];
   const color = COLORS[i%COLORS.length];
