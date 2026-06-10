@@ -696,10 +696,13 @@ function makeCard(show, i, wide=false) {
     ? '<span class="card-badge badge-orig">ORIGINAL</span>' : '';
   const lock = !currentUser
     ? '<span class="card-lock">🔒</span>' : '';
+  const thumbStyle = show.thumbnail_url
+    ? `background:url('${show.thumbnail_url}') center/cover no-repeat`
+    : `background:${color}`;
   return `<div class="show-card${wide?' wide':''}" onclick="openDetail('${show.id}')">
-    <div class="card-thumb${wide?' tall':''}" style="background:${color}">
+    <div class="card-thumb${wide?' tall':''}" style="${thumbStyle}">
       ${badge}${lock}
-      <span style="font-size:${wide?'40':'32'}px">${emoji}</span>
+      ${show.thumbnail_url ? '' : `<span style="font-size:${wide?'40':'32'}px">${emoji}</span>`}
     </div>
     <div class="card-body">
       <div class="card-title">${show.title}</div>
@@ -719,10 +722,10 @@ function renderCatalog(filter=null) {
   const grid   = document.getElementById('catalog-grid');
   grid.innerHTML = shows.map((s,i) => `
     <div class="show-card" style="width:100%" onclick="openDetail('${s.id}')">
-      <div class="card-thumb tall" style="background:${COLORS[i%COLORS.length]}">
+      <div class="card-thumb tall" style="${s.thumbnail_url ? `background:url('${s.thumbnail_url}') center/cover no-repeat` : `background:${COLORS[i%COLORS.length]}`}">
         ${s.is_original?'<span class="card-badge badge-orig">ORIGINAL</span>':''}
         ${!currentUser?'<span class="card-lock">🔒</span>':''}
-        <span style="font-size:42px">${EMOJIS[i%EMOJIS.length]}</span>
+        ${s.thumbnail_url ? '' : `<span style="font-size:42px">${EMOJIS[i%EMOJIS.length]}</span>`}
       </div>
       <div class="card-body">
         <div class="card-title">${s.title}</div>
@@ -741,7 +744,16 @@ async function openDetail(showId) {
   const show = allShows.find(s=>s.id===showId) || allShows[0];
   currentShow = show;
   const i = allShows.indexOf(show);
-  document.getElementById('d-emoji').textContent = EMOJIS[i%EMOJIS.length];
+  const dEmoji = document.getElementById('d-emoji');
+  const dBg = document.querySelector('#page-detail .detail-bg');
+  if (show.banner_url) {
+    dBg.style.background = `linear-gradient(to top, rgba(10,10,14,.96) 0%, rgba(10,10,14,.35) 55%, rgba(10,10,14,.15) 100%), url('${show.banner_url}') center/cover no-repeat`;
+    dEmoji.style.display = 'none';
+  } else {
+    dBg.style.background = '';
+    dEmoji.style.display = '';
+    dEmoji.textContent = EMOJIS[i%EMOJIS.length];
+  }
   document.getElementById('d-title').textContent = show.title;
   document.getElementById('d-desc').textContent  = show.synopsis || '—';
   document.getElementById('d-meta').innerHTML = `
@@ -769,7 +781,7 @@ async function loadEps(showId, season=1, btn=null) {
     const locked = !hasAccess && i > 0;
     return `<div class="ep-item${locked?' opacity-50':''}" onclick="${locked?'showPaywall()':''}" style="${locked?'opacity:.5':''}">
       <div class="ep-num">${String(ep.episode_number).padStart(2,'0')}</div>
-      <div class="ep-thumb"><span>${EMOJIS[i%EMOJIS.length]}</span></div>
+      <div class="ep-thumb">${ep.thumbnail_url ? `<img src="${ep.thumbnail_url}" style="width:100%;height:100%;object-fit:cover" alt="">` : `<span>${EMOJIS[i%EMOJIS.length]}</span>`}</div>
       <div class="ep-info">
         <div class="ep-title">E${ep.episode_number} — ${ep.title}</div>
         <div class="ep-desc">${ep.synopsis||'Chargement...'}</div>
