@@ -405,10 +405,11 @@ section.tight{padding:0 20px 20px}
     </div>
   </div>
   <div class="player-screen">
-    <div class="player-placeholder">
+    <video id="p-video" playsinline preload="metadata" style="width:100%;height:100%;object-fit:contain;background:#000;display:none"></video>
+    <div class="player-placeholder" id="p-placeholder">
       <div class="player-placeholder-icon">🎬</div>
       <div style="font-size:14px;font-weight:600" id="p-title-center">Chargement...</div>
-      <div style="font-size:11px;margin-top:6px;color:rgba(255,255,255,.3)">Connecte un CDN vidéo</div>
+      <div style="font-size:11px;margin-top:6px;color:rgba(255,255,255,.3)" id="p-placeholder-sub">Bientôt disponible</div>
     </div>
   </div>
   <div class="player-controls">
@@ -468,6 +469,7 @@ const { createClient } = supabase;
 const sb = createClient(SB_URL, SB_KEY);
 
 let currentUser = null, currentProfile = null, currentShow = null;
+let currentEps = [], _epIdx = -1;
 let deferredInstallPrompt = null;
 let playerPlaying = false, playerTimer = null, playerPct = 0;
 let billing = 'month';
@@ -477,19 +479,24 @@ const COLORS  = ['#1a0f05','#050a14','#14050a','#0a0a05','#05100f','#10050a','#0
 
 // ── INIT ──────────────────────────────────────────────
 async function init() {
-  registerSW();
-  await Promise.all([loadShows(), loadPlans()]);
-  const { data: { session } } = await sb.auth.getSession();
-  if (session?.user) await setUser(session.user);
-  sb.auth.onAuthStateChange(async (ev, session) => {
-    if (ev === 'SIGNED_IN')  { await setUser(session.user); }
-    if (ev === 'SIGNED_OUT') { clearUser(); }
-  });
-  renderHero();
-  renderHome();
-  renderCatalog();
-  renderPlans();
-  hideLoader();
+  try {
+    registerSW();
+    await Promise.all([loadShows(), loadPlans()]);
+    const { data: { session } } = await sb.auth.getSession();
+    if (session?.user) await setUser(session.user);
+    sb.auth.onAuthStateChange(async (ev, session) => {
+      if (ev === 'SIGNED_IN')  { await setUser(session.user); }
+      if (ev === 'SIGNED_OUT') { clearUser(); }
+    });
+    renderHero();
+    renderHome();
+    renderCatalog();
+    renderPlans();
+  } catch (err) {
+    console.error('[TivyX] init error:', err);
+  } finally {
+    hideLoader();
+  }
   setTimeout(showPushPrompt, 4000);
 }
 
@@ -813,6 +820,7 @@ async function loadEps(showId, season=1, btn=null) {
     const { data } = await sb.from('episodes').select('*').eq('show_id',showId).eq('status','published').order('episode_number');
     eps = data?.length ? data : getDemoEps(showId);
   } catch { eps = getDemoEps(showId); }
+  currentEps = eps;
 
   const hasAccess = currentUser && currentProfile?.plan_status === 'active';
   document.getElementById('d-eps').innerHTML = eps.map((ep,i) => {
@@ -826,7 +834,7 @@ async function loadEps(showId, season=1, btn=null) {
         <div class="ep-dur">${ep.duration_minutes||45} min</div>
       </div>
       ${locked ? '<div class="ep-lock">🔒</div>' :
-        `<div onclick="event.stopPropagation();openPlayer({title:'${currentShow?.title?.replace(/'/g,"\\'")||""}',ep:'S1E${ep.episode_number} · ${ep.title?.replace(/'/g,"\\'")||""}'})" style="font-size:24px;padding:4px;color:var(--gold);cursor:pointer">▶</div>`}
+        `<div onclick="event.stopPropagation();openPlayerByIndex(${i})" style="font-size:24px;padding:4px;color:var(--gold);cursor:pointer">▶</div>`}
     </div>`;
   }).join('');
 }
@@ -838,6 +846,7 @@ function getDemoEps(showId) {
 
 function playFirstEp() {
   if (!currentUser) { showAuth('login'); return; }
+  if (currentEps.length) { openPlayerByIndex(0); return; }
   openPlayer({title:currentShow?.title||'TivyX', ep:'S1E1 · Premier épisode'});
 }
 
@@ -933,12 +942,34 @@ function openPlayer(ep) {
   document.getElementById('p-ep').textContent         = ep.ep;
   document.getElementById('p-title-center').textContent = ep.ep;
   document.querySelector('meta[name="theme-color"]').setAttribute('content', '#000000');
-  startFakeProgress();
+  const v = document.getElementById('p-video');
+  const ph = document.getElementById('p-placeholder');
+  clearInterval(playerTimer);
+  if (ep.video_url) {
+    ph.style.display = 'none';
+    v.style.display = 'block';
+    v.src = ep.video_url;
+    v.play().catch(()=>{});
+    playerPlaying = true;
+    document.getElementById('p-play-btn').textContent = '⏸';
+    v.ontimeupdate = () => {
+      if (v.duration) document.getElementById('p-prog').style.width = (v.currentTime / v.duration * 100) + '%';
+    };
+    v.onended = () => { playerPlaying = false; document.getElementById('p-play-btn').textContent = '▶'; };
+  } else {
+    v.style.display = 'none'; v.removeAttribute('src');
+    ph.style.display = '';
+    const sub = document.getElementById('p-placeholder-sub');
+    if (sub) sub.textContent = 'Épisode en cours de production';
+    startFakeProgress();
+  }
 }
 
 function closePlayer() {
   document.getElementById('player-view').classList.remove('show');
   clearInterval(playerTimer);
+  const v = document.getElementById('p-video');
+  if (v) { v.pause(); v.removeAttribute('src'); v.load(); }
   playerPlaying = false;
   document.getElementById('p-play-btn').textContent = '▶';
   document.querySelector('meta[name="theme-color"]').setAttribute('content', '#e8a838');
@@ -956,11 +987,26 @@ function startFakeProgress() {
 }
 
 function togglePlay() {
-  playerPlaying = !playerPlaying;
+  const v = document.getElementById('p-video');
+  if (v && v.src && v.style.display !== 'none') {
+    if (v.paused) { v.play(); playerPlaying = true; }
+    else { v.pause(); playerPlaying = false; }
+  } else {
+    playerPlaying = !playerPlaying;
+  }
   document.getElementById('p-play-btn').textContent = playerPlaying ? '⏸' : '▶';
 }
-function prevEp() { toast('Épisode précédent'); }
-function nextEp() { toast('Épisode suivant'); }
+function openPlayerByIndex(i) {
+  const ep = currentEps[i]; if (!ep) return;
+  _epIdx = i;
+  openPlayer({
+    title: currentShow?.title || 'TivyX',
+    ep: 'S1E' + ep.episode_number + ' · ' + (ep.title || ''),
+    video_url: ep.video_url || null
+  });
+}
+function prevEp() { if (_epIdx > 0) openPlayerByIndex(_epIdx - 1); else toast('Premier épisode'); }
+function nextEp() { if (_epIdx >= 0 && _epIdx < currentEps.length - 1) openPlayerByIndex(_epIdx + 1); else toast('Dernier épisode disponible'); }
 
 // ── NAV ───────────────────────────────────────────────
 function showPage(page) {

@@ -1,7 +1,7 @@
 // TivyX Service Worker v1.0
 // Cache strategy: Network First for API, Cache First for assets
 
-const CACHE_VERSION = 'tivyx-v1.2.0';
+const CACHE_VERSION = 'tivyx-v1.3.0';
 const STATIC_CACHE  = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 const IMAGE_CACHE   = `${CACHE_VERSION}-images`;
